@@ -336,7 +336,7 @@ claude との相談履歴: https://claude.ai/share/a050b41a-1a56-4d99-bee7-7fa6f
 ```sh
 # 対話シェル
 $ /home/hoge/work/scipoptsuite-8.0.3/build_default/bin/scip
-SCIP> read /home/hoge/work/dmax-from-scratch/simu-practice/linear-problem.nl
+SCIP> read /home/hoge/work/dmax-from-scratch/dmax-practice/linear-problem.nl
 SCIP> optimize
 SCIP> display solution
 
@@ -369,9 +369,9 @@ $ /home/dmax-scratch/SCIPOptSuite-8.0.3-Linux/bin/scip
 
 # read コマンドで問題ファイルを読み込みます
 # read <問題ファイルへのパス>
-SCIP> read /home/dmax-scratch/simu-practice-problem.nl
+SCIP> read /home/dmax-scratch/dmax-practice-problem.nl
 
-read problem </home/dmax-scratch/simu-practice-problem.nl>
+read problem </home/dmax-scratch/dmax-practice-problem.nl>
 ============
 
 original problem has 3 variables (0 bin, 2 int, 0 impl, 1 cont) and 2 constraints
@@ -413,7 +413,7 @@ objconstant                                        50   (obj:1)
 
 # ワンライナーで実行
 # 上記の対話型で実行した内容を一発で実行できます
-$ /home/dmax-scratch/SCIPOptSuite-8.0.3-Linux/bin/scip -f /home/dmax-scratch/simu-practice-problem.nl
+$ /home/dmax-scratch/SCIPOptSuite-8.0.3-Linux/bin/scip -f /home/dmax-scratch/dmax-practice-problem.nl
 
 
 # version が 8.0.3 か確認
@@ -550,7 +550,7 @@ dmax-tiny では装備やスキルの種類の数は絞りますが、実際の�
 
 - 環境構築が最大の難関
   - 環境の概要図を書く (問題ファイル作成は python + pyomo 作成した問題を解くのが scip)
-- simu-practice
+- dmax-practice
   - pyomo -> 問題ファイル -> scip ソルバ -> 出力
 - 実データ簡易版 
   - データ準備、入力準備
