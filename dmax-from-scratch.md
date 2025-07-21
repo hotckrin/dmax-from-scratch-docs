@@ -896,6 +896,7 @@ python プログラムに出力されたモデルのメインファイル `dmax-
 
 まず、SCIPソルバーを対話モードで起動します。
 
+TODO: `SCIP> display problem` を追加したい
 
 ```sh
 dmax-scratch@DESKTOP-BP23A1J:~$ /home/dmax-scratch/SCIPOptSuite-8.0.3-Linux/bin/scip
@@ -1002,8 +1003,394 @@ objconstant                                        50   (obj:1)
 「ゲーム内の条件を制約式と目的関数に落とし込み、Python プログラムによって最適化問題をモデルとしてファイルに出力し、モデルファイルを最適化ソルバーに読み込ませて最適解を得る」という流れになっていました。
 
 
-膨大なゲーム内データと様々な制約条件を表現するためには、まだ手数が足りません。
-index, param をやりましょう
+実際のゲーム内の膨大なデータや制約条件を表現するためには、まだ手数が足りません。
+次のセクションで DMAX を実装するための準備運動として、pyomo の index, Var クラス, Param クラスを触ってみましょう。
+
+先程のセクションでは以下のように、2つの変数をそれぞれ別々のVar クラスのインスタンスとして定義していました。
+以下の Var クラスのインスタンスはそれぞれ単一の変数を表しています。
+変数が2つ程度であればこのような定義でも問題ありませんが、変数の数が数千件レベルになったときにはツラくなります。
+
+```py
+mdl.X_use = Var(within=NonNegativeIntegers, initialize=0)
+mdl.Y_use = Var(within=NonNegativeIntegers, initialize=0)
+```
+
+実は Var クラスはインデックスを利用することにより複数の変数をまとめて定義することができます。
+上記の例では Var クラスの引数はすべて `within=...` のようなキーワード引数として指定されています。
+インデックスは位置引数として指定する必要があるので、すべてのキーワード引数の前に指定してください。
+また、それぞれの変数にはインデックスをしていすることでアクセスできます。
+
+```py
+# 位置引数にインデックスを指定することで複数の変数をまとめて定義
+mdl.x = Var([0, 1], within=NonNegativeIntegers, initialize=0)
+
+# 各変数にはインデックスでアクセス
+mdl.x[0]
+mdl.x[1]
+```
+
+上記2つが同じ変数宣言になっていることを確かめてみましょう。
+先ほどはプログラムをファイルに書いて実行しましたが、今回は Python の対話モードを利用して pyomo を触ってみましょう。
+ターミナル上で以下のように実行して Python の対話モードを起動します。
+
+```sh
+$ uv run python
+Python 3.8.16 (default, Mar 29 2023, 09:41:05)
+[GCC 11.3.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>>
+```
+
+Python の対話モードが起動したら以下のように実行してみてください。
+
+```py
+# pyomo ライブラリをインポート
+from pyomo.environ import *
+
+# モデルを定義
+mdl = ConcreteModel()
+
+# 変数を別々の Var インスタンスとして定義
+mdl.X_use = Var(within=NonNegativeIntegers, initialize=17)
+mdl.Y_use = Var(within=NonNegativeIntegers, initialize=17)
+
+# 2の変数を1つの Var インスタンスとしてまとめて定義
+mdl.x = Var([0, 1], within=NonNegativeIntegers, initialize=17)
+
+# 変数 X_use の値や詳細を表示
+mdl.X_use.value
+mdl.X_use.pprint()
+
+# インデックス付きの変数 mdl.x の値や詳細を表示
+mdl.x[0]
+mdl.x.pprint()
+
+# ループ処理も可能
+for index in range(0, 2):
+    mdl.x[index].value
+
+```
+
+実際に実行すると以下のようになります。
+`mdl.x[0]` のようにアクセスすると各変数にアクセスできるため、配列のように扱えることが確認できます。
+
+```py
+# 単一の変数 X_use の値は初期値17に設定されています
+>>> mdl.X_use.value
+17
+
+# 変数 X_use の詳細を表示してみると、下限、初期値、上限、範囲などがわかります
+>>> mdl.X_use.pprint()
+X_use : Size=1, Index=None
+    Key  : Lower : Value : Upper : Fixed : Stale : Domain
+    None :     0 :    17 :  None : False : False : NonNegativeIntegers
+
+# インデックス付きの変数 x ではインデックスを指定することで個々の変数にアクセスできます
+# x[0] も初期値は17に設定されていることがわかります
+>>> mdl.x[0].value
+17
+
+# インデックス付きの変数 x の全体の詳細を表示すると、key=0,1 に対してそれぞれ変数が定義されていることが確認できます
+>>> mdl.x.pprint()
+x : Size=2, Index=x_index
+    Key : Lower : Value : Upper : Fixed : Stale : Domain
+      0 :     0 :    17 :  None : False : False : NonNegativeIntegers
+      1 :     0 :    17 :  None : False : False : NonNegativeIntegers
+
+# インデックスでアクセスできるのでループ処理も可能です
+>>> for index in range(0, 2):
+...     mdl.x[index].value
+...
+17
+17
+```
+
+次はパラメータを定義するための pyomo のクラス Param を利用してみましょう。
+
+最適化問題を解く際に、変化しない値を Param で表現します。
+先程の問題の例で言うと、制約条件や目的関数に登場する `2 * X_use` の 2 のような定数部分をパラメータで表現することを考えます。
+
+```
+2 * X_use + 1 * Y_use => 5
+```
+
+前のセクションでは、上記の制約条件を以下のように表現していました。
+これはパラメータを実際の数値として制約条件の式に直書きしている形になります。
+
+```py
+# 制約条件定義
+def constraint_1(mdl):
+    return 2 * mdl.X_use + 1 * mdl.Y_use >= 5
+```
+
+こちらを Param を使って書き直すと以下のようになります。
+
+```py
+# pyomo ライブラリをインポート
+from pyomo.environ import *
+
+# モデルを定義
+mdl = ConcreteModel()
+
+# 変数定義
+mdl.X_use = Var(within=NonNegativeIntegers, initialize=0)
+mdl.Y_use = Var(within=NonNegativeIntegers, initialize=0)
+ 
+# パラメータ定義
+mdl.p = Param(initialize=2)
+mdl.q = Param(initialize=1)
+mdl.r = Param(initialize=5)
+
+# 制約式
+def constraint_1(mdl):
+    return mdl.p * mdl.X_use + mdl.q * mdl.Y_use >= mdl.r
+
+# モデルに制約式を追加
+mdl.const_1 = Constraint(rule=constraint_1)
+ 
+# モデルの定義を出力
+mdl.pprint()
+
+```
+
+実際に実行してみると以下のような結果になります。
+`3 Param Declarations` の部分を見ると、3つのパラメータ (p=2, q=1, r=5) がモデルに追加されていることがわかります。
+`1 Constraint Declarations` の部分を見ると、制約式において Param で定義したパラメータの値が反映されていることが分かります。
+
+```py
+# モデル定義を出力
+>>> mdl.pprint()
+3 Param Declarations
+    p : Size=1, Index=None, Domain=Any, Default=None, Mutable=False
+        Key  : Value
+        None :     2
+    q : Size=1, Index=None, Domain=Any, Default=None, Mutable=False
+        Key  : Value
+        None :     1
+    r : Size=1, Index=None, Domain=Any, Default=None, Mutable=False
+        Key  : Value
+        None :     5
+
+2 Var Declarations
+    X_use : Size=1, Index=None
+        Key  : Lower : Value : Upper : Fixed : Stale : Domain
+        None :     0 :     0 :  None : False : False : NonNegativeIntegers
+    Y_use : Size=1, Index=None
+        Key  : Lower : Value : Upper : Fixed : Stale : Domain
+        None :     0 :     0 :  None : False : False : NonNegativeIntegers
+
+1 Constraint Declarations
+    const_1 : Size=1, Index=None, Active=True
+        Key  : Lower : Body            : Upper : Active
+        None :   5.0 : 2*X_use + Y_use :  +Inf :   True
+
+6 Declarations: X_use Y_use p q r const_1
+```
+
+次は、Var の場合と同様に Param をインデックスを利用して定義してみましょう。
+
+```py
+# pyomo ライブラリをインポート
+from pyomo.environ import *
+
+# モデルを定義
+mdl = ConcreteModel()
+
+# 変数定義
+mdl.x = Var([0, 1], within=NonNegativeIntegers, initialize=0)
+ 
+# パラメータ定義
+mdl.p = Param([0, 1, 2], initialize={0: 2, 1: 1, 2: 5}, within=Integers, default=0)
+
+# インデックス付きパラメータの詳細表示
+mdl.p.pprint()
+
+# インデックスを指定してアクセス可能
+for i in range(0, 3):
+    mdl.p[i]
+
+# 制約条件定義
+def constraint_1(mdl):
+    return mdl.p[2] <= sum(mdl.p[i] * mdl.x[i] for i in range(0,2))
+
+mdl.const_1 = Constraint(rule=constraint_1)
+
+# モデル定義を出力
+mdl.pprint()
+ 
+```
+
+次は、Param を2次元配列で定義してみましょう。
+2次元配列は `data_info[0][1]` でアクセスするような入れ子形式ではなく、`data_info[0, 1]` のようなタプルキーでアクセスする形式を利用します。一般に後者の形式のほうが高速にアクセスできるため最適化されたライブラリで利用されることが多いです。
+
+インデックスは1次元配列のときと同様に Param クラスの位置引数としてしています。2次元配列の場合は位置引数に2つのインデックスを指定します。
+
+3次元以上の高次元配列も同じ要領で定義できます。
+
+```py
+# pyomo ライブラリをインポート
+from pyomo.environ import *
+
+# モデルを定義
+mdl = ConcreteModel()
+
+# タプルキーで2次元配列を定義
+data_info = {
+    ('key1', 0):  2,
+    ('key1', 1):  1,
+    ('key1', 2):  5,
+    ('key2', 0): -2,
+    ('key2', 1): -1,
+    ('key2', 2): -5,
+}
+
+# 位置引数にインデックスを2っ指定し、このインデックスで引ける2次元配列をキーワード引数 initialize に指定
+mdl.p = Param(['key1', 'key2'], [0, 1, 2], initialize=data_info, within=Integers, default=0)
+
+# パラメータ p の詳細を確認
+mdl.p.pprint()
+
+# インデックスによるアクセスでループ処理
+for key in ['key1', 'key2']:
+    for i in range(0, 3):
+        mdl.p[key, i]
+
+```
+
+Python の対話モードを起動し、実際に実行すると以下のようになります。
+パラメータ p の詳細を表示すると `('key1', 0) :     2` のように出力されており、タプルキー `('key1', 0)` に対して値 `2` が設定されていることがわかります。
+
+また、二重 for ループの実行結果を見ると、インデックスの組み合わせ (タプルキー) によってすべての要素にアクセスできていることがわかります。
+
+```py
+>>> mdl.p.pprint()
+p : Size=6, Index=p_index, Domain=Integers, Default=0, Mutable=False
+    Key         : Value
+    ('key1', 0) :     2
+    ('key1', 1) :     1
+    ('key1', 2) :     5
+    ('key2', 0) :    -2
+    ('key2', 1) :    -1
+    ('key2', 2) :    -5
+
+>>> for key in ['key1', 'key2']:
+...     for i in range(0, 3):
+...         mdl.p[key, i]
+...
+2
+1
+5
+-2
+-1
+-5
+```
+
+
+ここまでで、インデックスと Var クラス、 Param クラスを利用して大量の変数やパラメータを定義&利用する方法を見てきました。
+最後に、前のセクションで定義した pyomo モデルをインデックスと Param クラスを利用して書き直してみましょう。
+
+前のセクションのコード
+```py
+from pyomo.environ import *
+
+if __name__ == '__main__':
+    # モデル定義
+    mdl = ConcreteModel(name="dmax-practice", doc="dmax-practice: ゼロから作るモンハン最適化シミュレータ")
+    
+    # 変数定義
+    mdl.X_use = Var(within=NonNegativeIntegers, initialize=0)
+    mdl.Y_use = Var(within=NonNegativeIntegers, initialize=0)
+    
+    # 制約条件定義
+    def constraint_1(mdl):
+        return 2 * mdl.X_use + 1 * mdl.Y_use >= 5
+    
+    mdl.const_1 = Constraint(rule=constraint_1)
+    
+    def constraint_2(mdl):
+        return 1 * mdl.X_use + 2 * mdl.Y_use <= 4
+    
+    mdl.const_2 = Constraint(rule=constraint_2)
+    
+    # 目的関数定義
+    def objective_function(mdl):
+        return 50 + 50 * mdl.X_use + 40 * mdl.Y_use
+    
+    mdl.OBJ = Objective(rule=objective_function, sense=maximize)
+    
+    # 問題ファイルを出力
+    # symbolic_solver_labels を有効化して変数名等の情報を保持
+    mdl.write("dmax-practice-problem.nl", format="nl", io_options={'symbolic_solver_labels': True})
+    print("最適化問題のモデルをファイルを出力しました")
+```
+
+インデックスと Param クラスを利用して書き直したコード
+```py
+from pyomo.environ import *
+
+if __name__ == '__main__':
+    # モデル定義
+    mdl = ConcreteModel(name="dmax-practice", doc="dmax-practice: ゼロから作るモンハン最適化シミュレータ")
+    
+    # 変数定義
+    mdl.X_use = Var(within=NonNegativeIntegers, initialize=0)
+    mdl.Y_use = Var(within=NonNegativeIntegers, initialize=0)
+    
+    # 制約条件定義
+    def constraint_1(mdl):
+        return 2 * mdl.X_use + 1 * mdl.Y_use >= 5
+    
+    mdl.const_1 = Constraint(rule=constraint_1)
+    
+    def constraint_2(mdl):
+        return 1 * mdl.X_use + 2 * mdl.Y_use <= 4
+    
+    mdl.const_2 = Constraint(rule=constraint_2)
+    
+    # 目的関数定義
+    def objective_function(mdl):
+        return 50 + 50 * mdl.X_use + 40 * mdl.Y_use
+    
+    mdl.OBJ = Objective(rule=objective_function, sense=maximize)
+    
+    # 問題ファイルを出力
+    # symbolic_solver_labels を有効化して変数名等の情報を保持
+    mdl.write("dmax-practice-problem.nl", format="nl", io_options={'symbolic_solver_labels': True})
+    print("最適化問題のモデルをファイルを出力しました")
+```
+
+
+
+
+
+
+
+
+Param を導入したい理由は以下の2つです。
+
+1. パラメータがユーザの入力などにより動的に変わるケースに対応するため
+2. パラメータの数が膨大になったときにインデックスで処理できるようにするため
+
+実際には、Python の dict 等を利用すれば上記と似たことが実現できますが、パラメータを pyomo モデルとして管理することで、整合性のチェックが可能になり、デバッグやメンテンナンスが容易になります。そのためParam を使ってパラメータを管理するのが pyomo でのベストプラクティスになります。
+
+まず、
+
+
+
+
+
+```py
+from pyomo.environ import *
+mdl = ConcreteModel()
+
+mdl.x = Var([0, 1], within=NonNegativeIntegers, initialize=0)
+
+mdl.p = Param(['key1', 'key2'], default=0, initialize={'key1': 111, 'key2': 222}, within=Integers)
+
+mdl.q = Var(['key1', 'key2'], within=NonNegativeIntegers, initialize=0) 
+```
+
+
 
 
 var, rule, index を深堀りしたい。
