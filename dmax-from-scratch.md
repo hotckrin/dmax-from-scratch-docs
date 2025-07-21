@@ -1220,8 +1220,19 @@ mdl.pprint()
  
 ```
 
+関数 `sum()` の内部の `mdl.p[i] * mdl.x[i] for i in range(0, 2)` の部分はリスト内包記法 (またはジェネレータ式) と呼ばれる書き方です。
+`i = 0, 1` のすべての場合について、 `mdl.p[i] * mdl.x[i]` という要素を持つ配列を生成しています。つまり以下の2つの式は同等です。
+```py
+# リスト内包記法 (ジェネレータ式)
+sum(mdl.p[i] * mdl.x[i] for i in range(0,2))
+
+# 展開した形
+sum((mdl.p[0] * mdl.x[0]) + (mdl.p[1] * mdl.x[1]))
+```
+
+
 次は、Param を2次元配列で定義してみましょう。
-2次元配列は `data_info[0][1]` でアクセスするような入れ子形式ではなく、`data_info[0, 1]` のようなタプルキーでアクセスする形式を利用します。一般に後者の形式のほうが高速にアクセスできるため最適化されたライブラリで利用されることが多いです。
+pyomo の2次元配列は `data_info[0][1]` でアクセスするような入れ子形式ではなく、`data_info[0, 1]` のようなタプルキーでアクセスする形式を利用します。一般に後者の形式のほうが高速にアクセスできるため最適化されたライブラリで利用されることが多いです。
 
 インデックスは1次元配列のときと同様に Param クラスの位置引数としてしています。2次元配列の場合は位置引数に2つのインデックスを指定します。
 
@@ -1328,35 +1339,58 @@ if __name__ == '__main__':
 ```py
 from pyomo.environ import *
 
-if __name__ == '__main__':
-    # モデル定義
-    mdl = ConcreteModel(name="dmax-practice", doc="dmax-practice: ゼロから作るモンハン最適化シミュレータ")
+# モデル定義
+mdl = ConcreteModel(name="dmax-practice", doc="dmax-practice: ゼロから作るモンハン最適化シミュレータ")
+
+# 変数定義
+mdl.x = Var([0, 1], within=NonNegativeIntegers, initialize=0)
+
+# パラメータ定義
+p_dict = {
+    (0, 0): 2,
+    (0, 1): 1,
+    (0, 2): 5,
+    (1, 0): 1,
+    (1, 1): 2,
+    (1, 2): 4,
+}
+
+q_dict = {
+    0: 50,
+    1: 40,
+    2: 50,
+}
+
+mdl.p = Param([0, 1], [0, 1, 2], initialize=p_dict, within=Integers, default=0)
+mdl.q = Param([0, 1, 2], initialize=q_dict, within=Integers, default=0)
+
+# 制約条件定義
+# 制約1: 2 * X_use + 1 * Y_use >= 5
+def constraint_1(mdl):
+    return sum(mdl.p[0, i] * mdl.x[i] for i in [0, 1]) >= mdl.p[0, 2]
+
+mdl.const_1 = Constraint(rule=constraint_1)
+
+# 制約2: 1 * X_use + 2 * Y_use <= 4
+def constraint_2(mdl):
+    return sum(mdl.p[1, i] * mdl.x[i] for i in [0, 1]) <= mdl.p[1, 2]
+
+mdl.const_2 = Constraint(rule=constraint_2)
+
+# 目的関数定義: 50 * X_use + 40 * Y_use + 50 を最大化
+def objective_function(mdl):
+    return sum(mdl.q[i] * mdl.x[i] for i in [0, 1]) + mdl.q[2]
+
+mdl.OBJ = Objective(rule=objective_function, sense=maximize)
+
+mdl.pprint()
+
     
-    # 変数定義
-    mdl.X_use = Var(within=NonNegativeIntegers, initialize=0)
-    mdl.Y_use = Var(within=NonNegativeIntegers, initialize=0)
-    
-    # 制約条件定義
-    def constraint_1(mdl):
-        return 2 * mdl.X_use + 1 * mdl.Y_use >= 5
-    
-    mdl.const_1 = Constraint(rule=constraint_1)
-    
-    def constraint_2(mdl):
-        return 1 * mdl.X_use + 2 * mdl.Y_use <= 4
-    
-    mdl.const_2 = Constraint(rule=constraint_2)
-    
-    # 目的関数定義
-    def objective_function(mdl):
-        return 50 + 50 * mdl.X_use + 40 * mdl.Y_use
-    
-    mdl.OBJ = Objective(rule=objective_function, sense=maximize)
-    
-    # 問題ファイルを出力
-    # symbolic_solver_labels を有効化して変数名等の情報を保持
-    mdl.write("dmax-practice-problem.nl", format="nl", io_options={'symbolic_solver_labels': True})
-    print("最適化問題のモデルをファイルを出力しました")
+# 問題ファイルを出力
+# symbolic_solver_labels を有効化して変数名等の情報を保持
+mdl.write("dmax-practice-problem.nl", format="nl", io_options={'symbolic_solver_labels': True})
+print("最適化問題のモデルをファイルを出力しました")
+
 ```
 
 
