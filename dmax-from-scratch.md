@@ -463,16 +463,6 @@ Python はバージョンが揃っていればどのOSでも問題なく動く�
 その他のOSの方は、上記の表の必須の項目を準備してください。(ChatGPT, Gemini, Claude などに聞けば教えてくれると思います。)
 
 
-
-
-
-
-
-
-
-
-
-
 wip: 環境構築したときのメモ
 claude との相談履歴: https://claude.ai/share/a050b41a-1a56-4d99-bee7-7fa6f8ec6938
 (まっさらな ubuntu 環境を wsl 上に新規構築する手順が書いてある)
@@ -608,6 +598,420 @@ Build options:
  ZLIB=ON
 
 ```
+
+それでは pyomo によるモデルを出力するためのコードを書いていきましょう。
+
+まずは最適化モデルを定義していくためのベースとなる Model クラスのインスタンスを作成します。
+
+```py
+from pyomo.environ import *
+
+if __name__ == '__main__':
+    # 線形計画問題を解くためのPyomoモデルを定義します
+    
+    # モデル定義
+    mdl = ConcreteModel(name="dmax-practice", doc="dmax-practice: ゼロから作るモンハン最適化シミュレータ")
+```
+
+pyomo の Model クラスには以下の2種類があります。
+
+| モデルの種類 | 用途 |
+| ---- | ---- |
+| ConcreteModel | モデル定義の際にパラメータの値が分かる場合に利用 |
+| AbstractModel | モデル定義の際にパラメータの値が分からず、最適化を実行する段階で判明する場合に利用 |
+
+最適化モデルにおける変数は最適化処理で求める値なのでモデルを定義する際にはわかりません。
+変数以外のパラメータ (定数) についてはモデルを定義する際に分かる場合と、最適化を実行する段階になるまで分からない場合の2種類があります。
+モデルを定義する際にパラメータが分かる場合には ConcreteModel を利用します。
+最適化を実行する段階になるまでパラメータの値が分からない場合には AbstractModel を利用します。
+
+今回のようなモンハンの最適化シミュレーターの場合、パラメータとは具体的な装備やスキル等のゲーム内データにあたります。
+これらは、ゲーム内データやユーザの入力を元にモデルを定義する際に分かるものなので、今回は ConcreteModel を採用します。
+
+
+Model クラスのインスタンス `mdl` を作成できたので、以降はこの `mdl` に変数やパラメータ、制約条件、目的関数を定義していきます。
+
+制約条件を表現するためには変数とパラメータが必要です。今回のようなシンプルな問題ではパラメータは制約条件に直書きすればいいですが、変数は最適化処理で変化しうるので先に定義しておく必要があります。
+なので、まずは変数を以下のように宣言しましょう。
+
+```py
+from pyomo.environ import *
+
+if __name__ == '__main__':
+    # 線形計画問題を解くためのPyomoモデルを定義します
+    
+    # モデル定義
+    mdl = ConcreteModel(name="dmax-practice", doc="dmax-practice: ゼロから作るモンハン最適化シミュレータ")
+
+    # 変数定義
+    # X_use: 非負整数変数
+    mdl.X_use = Var(within=NonNegativeIntegers, initialize=0)
+    
+    # Y_use: 非負整数変数  
+    mdl.Y_use = Var(within=NonNegativeIntegers, initialize=0)
+```
+
+pyomo の変数は `Var` クラスで定義します。
+
+`Var` クラスの主な引数は以下の通りです。
+
+| 引数 | 説明 | 
+|------|------|
+| `domain` または `within` | 変数の取りうる値の範囲を指定 (実数、整数など) |
+| `initialize` | 変数の初期値を指定 |
+
+引数 `domain (within)` では変数の取り得る値の範囲を指定します。取りうる値の範囲は Set と呼び、 Set としては `Reals` (実数), `Integers` (整数), `NonNegativeIntegers` (非負整数), `Boolean` (真偽値) などを指定できます。
+定義済みの Set の一覧については [Pyomo ドキュメント](https://pyomo.readthedocs.io/en/stable/explanation/modeling/math_programming/sets.html#predefined-virtual-sets) を参照してください。
+`within` は `domain` のエイリアスなのでどちらでも良いです。`domain` を指定しなかった場合のデフォルト値は `Reals` (実数) になります。
+
+今回の問題の場合、`X_use` と `Y_use` はともに非負整数という条件があるので `NonNegativeIntegers` を指定します。
+
+```
+0 <= X_use (ただし X_use は整数)
+0 <= Y_use (ただし Y_use は整数)
+```
+
+引数 `initialize` では変数の初期値を指定します。初期値としては数値もしくは初期値を返すための関数を指定できます。
+`initialize` で指定された値は最適化処理を行う際に解を探索する開始点として利用されます。
+今回の問題の場合は非負整数であれば何でも良いので、初期値として0を指定しました。
+
+このように作成した変数を `mdl.X_use = ` という形でモデルの属性として追加しています。
+Python ではドットに続く名前すべてを属性と呼びます。属性は他のプログラミング言語におけるメンバ変数、フィールド、メソッド、プロパティ等に相当します。
+
+```py
+    mdl.X_use = Var(within=NonNegativeIntegers, initialize=0)
+```
+
+この `mdl.X_use = ` の部分に馴染みがない方もいるかもしれません。ここでは Model クラスにおそらく存在しないであろう `X_use` という属性を勝手に定義しています。
+これは Python の動的な属性追加という機能を利用しています。
+Python は実行時にオブジェクトに対して新しい属性を追加することができ、ここではそのように追加された属性を動的属性と呼んでいます。
+
+pyomo では変数のようなモデルを定義する要素を、動的属性によって追加することができます。
+変数だけではなく、パラメータ、制約条件、目的関数もすべて動的属性によってモデルに追加することができます。
+このような設計により pyomo ではモデルにその変数や制約条件等が紐づいていることを直感的に表現することができます。
+
+ここまでで、モデルに必要な変数を追加することができました。
+次はこれらの変数を利用して制約条件をモデルに追加していきましょう。ここでも動的属性を利用してモデルに追加していきます。
+
+```
+制約条件:
+2 * X_use + 1 * Y_use => 5
+1 * X_use + 2 * Y_use <= 4
+```
+
+上記の制約条件は以下のようにモデルに追加できます。
+
+```py
+from pyomo.environ import *
+
+if __name__ == '__main__':
+    # モデル定義
+    mdl = ConcreteModel(name="dmax-practice", doc="dmax-practice: ゼロから作るモンハン最適化シミュレータ")
+    
+    # 変数定義
+    mdl.X_use = Var(within=NonNegativeIntegers, initialize=0)
+    mdl.Y_use = Var(within=NonNegativeIntegers, initialize=0)
+    
+    # 制約条件定義
+    # 制約1: 2 * X_use + 1 * Y_use >= 5
+    def constraint_1(mdl):
+        return 2 * mdl.X_use + 1 * mdl.Y_use >= 5
+    
+    mdl.const_1 = Constraint(rule=constraint_1)
+    
+    # 制約2: 1 * X_use + 2 * Y_use <= 4
+    def constraint_2(mdl):
+        return 1 * mdl.X_use + 2 * mdl.Y_use <= 4
+    
+    mdl.const_2 = Constraint(rule=constraint_2)
+```
+
+pyomo で制約条件を定義する際には `Constraint` クラスを利用します。`Constraint` クラスの引数 `rule` には制約条件の式を返す関数を指定します。
+`rule` 引数に渡している `constraint_1` の定義を見ると、`mdl.X_use` と `mdl.Y_use` を利用して制約条件の不等式が定義されており、直感的に制約条件を定義できていることが分かると思います。
+
+`rule` 引数に渡す関数の第1引数は常にモデルオブジェクトを受け取ります。そのため関数 `constrait_1` を定義する際には以下のように `mdl` と記述して、第1引数にモデルを受け取るように定義する必要があります。
+
+```py
+    def constraint_1(mdl):
+        return 2 * mdl.X_use + 1 * mdl.Y_use >= 5
+```
+
+このようにして作成した制約条件を表す Constraint クラスのインスタンスを `mdl.const_1 = ` という形で、動的属性によりモデルに追加しています。
+
+```py
+    mdl.const_1 = Constraint(rule=constraint_1)
+```
+
+ここまでで、変数と制約条件をモデルに追加できました。最後に目的関数をモデルに追加します。
+
+```
+50 + 50 * X_use + 40 * Y_use    
+```
+
+上記の目的関数は以下のようにモデルに追加できます。
+
+```py
+from pyomo.environ import *
+
+if __name__ == '__main__':
+    # モデル定義
+    mdl = ConcreteModel(name="dmax-practice", doc="dmax-practice: ゼロから作るモンハン最適化シミュレータ")
+    
+    # 変数定義
+    mdl.X_use = Var(within=NonNegativeIntegers, initialize=0)
+    mdl.Y_use = Var(within=NonNegativeIntegers, initialize=0)
+    
+    # 制約条件定義
+    def constraint_1(mdl):
+        return 2 * mdl.X_use + 1 * mdl.Y_use >= 5
+    
+    mdl.const_1 = Constraint(rule=constraint_1)
+    
+    def constraint_2(mdl):
+        return 1 * mdl.X_use + 2 * mdl.Y_use <= 4
+    
+    mdl.const_2 = Constraint(rule=constraint_2)
+    
+    # 目的関数定義: 50 + 50 * X_use + 40 * Y_use を最大化
+    def objective_function(mdl):
+        return 50 + 50 * mdl.X_use + 40 * mdl.Y_use
+    
+    mdl.OBJ = Objective(rule=objective_function, sense=maximize)
+```
+
+pyomo で目的関数を定義する際には Objective クラスを利用します。 Objective クラスの取り扱いは Constraint とほぼ同じです。
+
+引数 `rule` には目的関数の式を返す関数を指定します。Constraint の場合には、制約条件をを返すために等式や不等式を返す関数を指定していましたが、Objective の場合には、目的関数の式を返すため等号や不等号は登場しません。
+
+引数 `sense` には最適化の方向性として目的関数を最大化したいのか最小化したいのかを指定します。デフォルトは `sense=minimize` (最小化) なので、今回のような最大化の場合には明示的に `sense=maximize` と指定する必要があります。
+
+このようにして作成した目的関数を、動的属性によりモデルに追加します。
+
+```py
+    mdl.OBJ = Objective(rule=objective_function, sense=maximize)
+```
+
+ここまでで、モデルの定義がすべて完了しました。最後にモデルをファイルに出力しましょう。
+(ここで出力するファイルは後に、SCIP ソルバーに入力することで最適解を得ることができます)
+
+```py
+from pyomo.environ import *
+
+if __name__ == '__main__':
+    # モデル定義
+    mdl = ConcreteModel(name="dmax-practice", doc="dmax-practice: ゼロから作るモンハン最適化シミュレータ")
+    
+    # 変数定義
+    mdl.X_use = Var(within=NonNegativeIntegers, initialize=0)
+    mdl.Y_use = Var(within=NonNegativeIntegers, initialize=0)
+    
+    # 制約条件定義
+    def constraint_1(mdl):
+        return 2 * mdl.X_use + 1 * mdl.Y_use >= 5
+    
+    mdl.const_1 = Constraint(rule=constraint_1)
+    
+    def constraint_2(mdl):
+        return 1 * mdl.X_use + 2 * mdl.Y_use <= 4
+    
+    mdl.const_2 = Constraint(rule=constraint_2)
+    
+    # 目的関数定義
+    def objective_function(mdl):
+        return 50 + 50 * mdl.X_use + 40 * mdl.Y_use
+    
+    mdl.OBJ = Objective(rule=objective_function, sense=maximize)
+    
+    # 問題ファイルを出力
+    # symbolic_solver_labels を有効化して変数名等の情報を保持
+    mdl.write("dmax-practice-problem.nl", format="nl", io_options={'symbolic_solver_labels': True})
+    print("最適化問題のモデルをファイルを出力しました")
+```
+
+以下のように、モデルインスタンスの `write` メソッド `mdl.write()` を利用することで、定義したモデルをファイルに出力することができます。
+
+```py
+    mdl.write("dmax-practice-problem.nl", format="nl", io_options={'symbolic_solver_labels': True})
+```
+
+第1引数にはファイル名を指定します。
+
+引数 `format` ではファイルの形式を指定できます。ここでは多くの最適化問題とソルバーに対応している `nl` (AMPL Nonlinear) 形式を指定します。
+
+引数 `io_options` では出力のオプションを指定できます。`'symbolic_solver_labels': True` によって、人間が読める形式のラベルがファイルに保存されるようになります。
+デバッグを行う際にファイルが人間が読めると便利なので指定しておきましょう。
+
+
+以上で、最適化問題のモデルをファイルを出力するためのプログラムが完成しました。
+ターミナルから以下のようにして実行してみましょう。
+`dmax-practice-problem.*` という名前のファイルが3つ出力されていれば成功です。
+
+```sh
+# プログラムを実行
+$ uv run main.py
+最適化問題のモデルをファイルを出力しました
+
+# ls コマンドでファイルが出力されたかどうか確認
+$ ls -lh | grep dmax-practice
+-rw-r--r-- 1 hoge hoge   12 Jul 21 11:40 dmax-practice-problem.col
+-rw-r--r-- 1 hoge hoge  747 Jul 21 11:40 dmax-practice-problem.nl
+-rw-r--r-- 1 hoge hoge   20 Jul 21 11:40 dmax-practice-problem.row
+```
+
+出力されたファイルを眺めてみましょう。
+
+```sh
+# .nl ファイルの中身を確認 (出力は長いので省略)
+$ cat dmax-practice-problem.nl
+
+# .col ファイルに変数の名前が保存されていることを確認
+$ cat dmax-practice-problem.col
+X_use
+Y_use
+
+# .row ファイルに制約式や目的関数の名前が保存されていることを確認
+$ cat dmax-practice-problem.row
+const_1
+const_2
+OBJ
+```
+
+`.nl` 形式のファイルがメインのモデルファイルです。最適化ソルバーに入力する問題ファイルは `.nl` 形式のファイルになります。
+では残りの `.col` や `.row` 形式のファイルは何かというと、python プログラム中で指定した変数、制約式、目的関数の名前が出力されるファイルになります。
+`io_options={'symbolic_solver_labels': True}` を指定することによって、`.col` や `.row` 形式のファイルが出力されるようになります。
+これらのファイルがあると最適化問題の結果やモデルファイルが人間の読める形式で出力されるようになるため、結果の表示やデバッグに役立ちます。
+
+
+次はいよいよ、最適化ソルバーに最適化問題を解かせてみます。
+python プログラムに出力されたモデルのメインファイル `dmax-practice-problem.nl` をSCIPソルバーに入力して最適化してみましょう。
+
+まず、SCIPソルバーを対話モードで起動します。
+
+
+```sh
+dmax-scratch@DESKTOP-BP23A1J:~$ /home/dmax-scratch/SCIPOptSuite-8.0.3-Linux/bin/scip
+SCIP version 8.0.3 [precision: 8 byte] [memory: block] [mode: optimized] [LP solver: Soplex 6.0.3] [GitHash: 62fab8a2e3]
+Copyright (C) 2002-2022 Konrad-Zuse-Zentrum fuer Informationstechnik Berlin (ZIB)
+
+External libraries:
+  Soplex 6.0.3         Linear Programming Solver developed at Zuse Institute Berlin (soplex.zib.de) [GitHash: f900e3d0]
+  CppAD 20180000.0     Algorithmic Differentiation of C++ algorithms developed by B. Bell (github.com/coin-or/CppAD)
+  ZLIB 1.2.11          General purpose compression library by J. Gailly and M. Adler (zlib.net)
+  GMP 6.2.1            GNU Multiple Precision Arithmetic Library developed by T. Granlund (gmplib.org)
+  ZIMPL 3.5.3          Zuse Institute Mathematical Programming Language developed by T. Koch (zimpl.zib.de)
+  AMPL/MP 4e2d45c4     AMPL .nl file reader library (github.com/ampl/mp)
+  PaPILO 2.1.2         parallel presolve for integer and linear optimization (github.com/scipopt/papilo) [GitHash: 2fe2543]
+  bliss 0.77           Computing Graph Automorphism Groups by T. Junttila and P. Kaski (www.tcs.hut.fi/Software/bliss/)
+  Ipopt 3.13.2         Interior Point Optimizer developed by A. Waechter et.al. (github.com/coin-or/Ipopt)
+
+user parameter file <scip.set> not found - using default parameters
+
+SCIP>
+```
+
+次に、以下のように `read` コマンドを実行してモデルファイル `dmax-practice-problem.nl` をSCIPソルバーに入力します。
+読込結果から3つの変数 (variables) と2つの制約式 (constraints) があることがわかります。
+python プログラム中で定義した変数は `X_use` と `Y_use` の2つのみですが、`.nl` 形式では目的関数の定数項を変数として表現しているため変数が1つ増えています。
+
+```sh
+
+SCIP> read dmax-practice-problem.nl
+
+read problem <dmax-practice-problem.nl>
+============
+
+original problem has 3 variables (0 bin, 2 int, 0 impl, 1 cont) and 2 constraints
+```
+
+次に、以下のように `optimize` コマンドを実行して最適化を実行してください。
+出力結果の `SCIP Status        : problem is solved [optimal solution found]` から最適化が完了し、最適解が見つかったことが分かります。
+
+```sh
+SCIP> optimize
+
+solution violates original bounds of variable <objconstant> [50,50] solution value <0>
+all 1 solutions given by solution candidate storage are infeasible
+
+presolving:
+(round 1, fast)       2 del vars, 1 del conss, 0 add conss, 2 chg bounds, 0 chg sides, 0 chg coeffs, 0 upgd conss, 0 impls, 0 clqs
+(round 2, fast)       2 del vars, 2 del conss, 0 add conss, 3 chg bounds, 0 chg sides, 0 chg coeffs, 0 upgd conss, 0 impls, 0 clqs
+presolving (3 rounds: 3 fast, 1 medium, 1 exhaustive):
+ 3 deleted vars, 2 deleted constraints, 0 added constraints, 3 tightened bounds, 0 added holes, 0 changed sides, 0 changed coefficients
+ 0 implications, 0 cliques
+transformed 1/1 original solutions to the transformed problem space
+Presolving Time: 0.00
+
+SCIP Status        : problem is solved [optimal solution found]
+Solving Time (sec) : 0.00
+Solving Nodes      : 0
+Primal Bound       : +2.50000000000000e+02 (1 solutions)
+Dual Bound         : +2.50000000000000e+02
+Gap                : 0.00 %
+```
+
+最後に、以下のように `display solution` を実行して、得られた最適解を表示してください。
+結果から目的関数を最大化する最適解は `X_use=4`, `Y_use=0`  (0なので表示されていない) の場合であり、目的関数の最大値は250になることが分かります。
+
+```sh
+SCIP> display solution
+
+objective value:                                  250
+X_use                                               4   (obj:50)
+objconstant                                        50   (obj:1)
+```
+
+以上の結果から、ゲーム内の条件が以下のような形式だった場合に、そのゲーム内で実現できる最大ダメージは250であり、実現するための装備は「防具Xのみ4つ装備」であることがわかります。
+
+```
+武器C: 攻撃力 30, 属性値 20
+防具X: 攻撃強化Ⅱ, 属性強化Ⅰ, 体術 x2, 重量1kg
+防具Y: 攻撃強化Ⅰ, 属性強化Ⅱ, 体術,    重量2kg
+
+スキルの効果:
+攻撃強化Ⅰ: 攻撃力を +10 (装備全体で「攻撃強化Ⅰ」がN個ついている場合、攻撃力の加算値は +10N とする。攻撃強化Ⅱ,属性強化Ⅰ,Ⅱについても同様)
+攻撃強化Ⅱ: 攻撃力を +30
+属性強化Ⅰ: 属性値を +20
+属性強化Ⅱ: 属性値を +30
+体術: ダメージ計算には寄与しない
+
+装備の条件: 
+(条件1) 防具は0個以上のいくつでも装備できる
+(条件2) 体術は最低5個欲しい
+(条件3) 防具重量の合計の上限は4kg (4kg 以上の防具は重くて装備できない)
+
+ダメージ計算式:
+(ダメージ) = {(武器の攻撃力) + (攻撃強化スキルによる攻撃力加算)}
+           + {(武器の属性値) + (属性強化スキルによる属性値加算)}
+```
+
+ここまでの流れで、最適化ソルバーにゲーム内の最適化問題を解かせることができました。
+流れをまとめると
+「ゲーム内の条件を制約式と目的関数に落とし込み、Python プログラムによって最適化問題をモデルとしてファイルに出力し、モデルファイルを最適化ソルバーに読み込ませて最適解を得る」という流れになっていました。
+
+
+
+var, rule, index を深堀りしたい。
+
+`rule` 関数の戻り値としては基本的に制約式を返す必要があります。制約式は `<=`, `>=`, `==` を含む関係式により定義します。
+したがって、もし「防具の合計数が必ず1でなければならない」という制約がある場合は、以下のような `==` による制約式を定義することになるでしょう。
+
+```py
+    def constraint_armor_leq(mdl):
+        return mdl.X_use + mdl.Y_use == 1
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## モンハンワイルズのデータで最適化シミュを自作する
 
