@@ -1661,48 +1661,53 @@ head <= 1
 (p['頭'][j] * q[j] for j in ['レダゼルトヘルムγ', 'レダゼルトメイルγ', ... '痛撃珠【３】']) <= 1
 ```
 
-それでは、こちらの条件式を dmax-mini に追加していきましょう。
+それでは、上記のジェネレータ式の記法をベースにして制約条件(1)を実装してみましょう。<br>
+
+まずは実装全体を示し、後に各コードの説明をします。<br>
+以下のように `dmax-mini-1.py` というファイルに実装しました。実行方法は `$ uv run dmax-mini-1.py` です。
 
 ```py
-# dmax-mini-1.py
+# dmax-mini-1.py: 制約条件(1) を実装
 from pyomo.environ import *
 
 # =============================================================================
-# step1. 入力データ読み込み: 装備データの２次元配列作成、配列のインデックス作成
+# step1. 入力データ読み込み: 装備データ２次元配列作成、配列のインデックス作成
 # =============================================================================
 
+
+# 全ての装備データ (防具、護石)
 equip_all = [
-    {"type": "head", "name": "レダゼルトヘルムγ", "deffence": 68, "slots": [3, 0, 0], "skills": {"煌雷竜の力": 1, "ヌシの魂": 1, "弱点特効": 1, "渾身": 1, "スタミナ急速回復": 1}},
-    {"type": "torso", "name": "レダゼルトメイルγ", "deffence": 68, "slots": [1, 0, 0], "skills": {"煌雷竜の力": 1, "ヌシの魂": 1, "力の解放": 3}},
-    {"type": "arms", "name": "レダゼルトアームγ", "deffence": 68, "slots": [3, 3, 0], "skills": {"煌雷竜の力": 1, "ヌシの魂": 1, "回避距離ＵＰ": 2}},
-    {"type": "waist", "name": "レダゼルトコイルγ", "deffence": 68, "slots": [0, 0, 0], "skills": {"煌雷竜の力": 1, "ヌシの魂": 1, "力の解放": 2, "渾身": 2}},
-    {"type": "legs", "name": "レダゼルトグリーヴγ", "deffence": 68, "slots": [3, 0, 0], "skills": {"煌雷竜の力": 1, "ヌシの魂": 1, "スタミナ急速回復": 2, "気絶耐性": 3}},
+    {"type": "head",  "name": "レダゼルトヘルムγ",   "deffence": 68, "slots": [3, 0, 0], "skills": {"煌雷竜の力": 1, "ヌシの魂": 1, "弱点特効": 1, "渾身": 1, "スタミナ急速回復": 1}},
+    {"type": "torso", "name": "レダゼルトメイルγ",   "deffence": 68, "slots": [1, 0, 0], "skills": {"煌雷竜の力": 1, "ヌシの魂": 1, "力の解放": 3}},
+    {"type": "arms",  "name": "レダゼルトアームγ",   "deffence": 68, "slots": [3, 3, 0], "skills": {"煌雷竜の力": 1, "ヌシの魂": 1, "回避距離ＵＰ": 2}},
+    {"type": "waist", "name": "レダゼルトコイルγ",   "deffence": 68, "slots": [0, 0, 0], "skills": {"煌雷竜の力": 1, "ヌシの魂": 1, "力の解放": 2, "渾身": 2}},
+    {"type": "legs",  "name": "レダゼルトグリーヴγ", "deffence": 68, "slots": [3, 0, 0], "skills": {"煌雷竜の力": 1, "ヌシの魂": 1, "スタミナ急速回復": 2, "気絶耐性": 3}},
 
-    {"type": "head", "name": "ラギアヘルムα", "deffence": 64, "slots": [2, 1, 0], "skills": {"海竜の渦雷": 1, "渾身": 2, "力の解放": 1, "革細工の柔性": 1}},
-    {"type": "torso", "name": "ラギアメイルα", "deffence": 64, "slots": [2, 1, 0], "skills": {"海竜の渦雷": 1, "雷耐性": 2,  "弱点特効": 1, "スタミナ急速回復": 1, "革細工の柔性": 1}},
-    {"type": "arms", "name": "ラギアアームα", "deffence": 64, "slots": [2, 0, 0], "skills": {"海竜の渦雷": 1, "スタミナ急速回復": 2, "弱点特効": 1, "水場・油泥適応": 1, "革細工の柔性": 1}},
-    {"type": "waist", "name": "ラギアコイルα", "deffence": 64, "slots": [2, 1, 1], "skills": {"海竜の渦雷": 1, "弱点特効": 1, "渾身": 1, "水場・油泥適応": 1, "革細工の柔性": 1}},
-    {"type": "legs", "name": "ラギアグリーヴα", "deffence": 64, "slots": [0, 0, 0], "skills": {"海竜の渦雷": 1, "弱点特効": 2, "力の解放": 1, "雷耐性": 1, "革細工の柔性": 1}},
+    {"type": "head",  "name": "ラギアヘルムα",       "deffence": 64, "slots": [2, 1, 0], "skills": {"海竜の渦雷": 1, "渾身": 2, "力の解放": 1, "革細工の柔性": 1}},
+    {"type": "torso", "name": "ラギアメイルα",       "deffence": 64, "slots": [2, 1, 0], "skills": {"海竜の渦雷": 1, "雷耐性": 2,  "弱点特効": 1, "スタミナ急速回復": 1, "革細工の柔性": 1}},
+    {"type": "arms",  "name": "ラギアアームα",       "deffence": 64, "slots": [2, 0, 0], "skills": {"海竜の渦雷": 1, "スタミナ急速回復": 2, "弱点特効": 1, "水場・油泥適応": 1, "革細工の柔性": 1}},
+    {"type": "waist", "name": "ラギアコイルα",       "deffence": 64, "slots": [2, 1, 1], "skills": {"海竜の渦雷": 1, "弱点特効": 1, "渾身": 1, "水場・油泥適応": 1, "革細工の柔性": 1}},
+    {"type": "legs",  "name": "ラギアグリーヴα",     "deffence": 64, "slots": [0, 0, 0], "skills": {"海竜の渦雷": 1, "弱点特効": 2, "力の解放": 1, "雷耐性": 1, "革細工の柔性": 1}},
 
-    {"type": "head", "name": "レギオスヘルムα", "deffence": 64, "slots": [3, 0, 0], "skills": {"千刃竜の闘志": 1, "巧撃": 1, "逆襲": 1, "裂傷耐性": 1, "鱗張りの技法": 1}},
-    {"type": "torso", "name": "レギオスメイルα", "deffence": 64, "slots": [1, 0, 0], "skills": {"千刃竜の闘志": 1, "回避性能": 2, "挑戦者": 1, "逆襲": 1, "鱗張りの技法": 1}},
-    {"type": "arms", "name": "レギオスアームα", "deffence": 64, "slots": [2, 0, 0], "skills": {"千刃竜の闘志": 1, "巧撃": 2, "回避距離ＵＰ": 1, "鱗張りの技法": 1}},
-    {"type": "waist", "name": "レギオスコイルα", "deffence": 64, "slots": [2, 0, 0], "skills": {"千刃竜の闘志": 1, "回避性能": 2, "挑戦者": 1, "裂傷耐性": 1, "鱗張りの技法": 1}},
-    {"type": "legs", "name": "レギオスグリーヴα", "deffence": 64, "slots": [0, 0, 0], "skills": {"千刃竜の闘志": 1, "巧撃": 2, "挑戦者": 1, "裂傷耐性": 1, "鱗張りの技法": 1}},
+    {"type": "head",  "name": "レギオスヘルムα",     "deffence": 64, "slots": [3, 0, 0], "skills": {"千刃竜の闘志": 1, "巧撃": 1, "逆襲": 1, "裂傷耐性": 1, "鱗張りの技法": 1}},
+    {"type": "torso", "name": "レギオスメイルα",     "deffence": 64, "slots": [1, 0, 0], "skills": {"千刃竜の闘志": 1, "回避性能": 2, "挑戦者": 1, "逆襲": 1, "鱗張りの技法": 1}},
+    {"type": "arms",  "name": "レギオスアームα",     "deffence": 64, "slots": [2, 0, 0], "skills": {"千刃竜の闘志": 1, "巧撃": 2, "回避距離ＵＰ": 1, "鱗張りの技法": 1}},
+    {"type": "waist", "name": "レギオスコイルα",     "deffence": 64, "slots": [2, 0, 0], "skills": {"千刃竜の闘志": 1, "回避性能": 2, "挑戦者": 1, "裂傷耐性": 1, "鱗張りの技法": 1}},
+    {"type": "legs",  "name": "レギオスグリーヴα",   "deffence": 64, "slots": [0, 0, 0], "skills": {"千刃竜の闘志": 1, "巧撃": 2, "挑戦者": 1, "裂傷耐性": 1, "鱗張りの技法": 1}},
 
-    {"type": "charm", "name": "挑戦の護石Ⅱ", "deffence": 0, "slots": [0,0,0], "skills": {"挑戦者": 2}},
-    {"type": "charm", "name": "反攻の護石Ⅲ", "deffence": 0, "slots": [0,0,0], "skills": {"巧撃": 3}},
+    {"type": "charm", "name": "挑戦の護石Ⅱ", "slots": [0,0,0], "skills": {"挑戦者": 2}},
+    {"type": "charm", "name": "反攻の護石Ⅲ", "slots": [0,0,0], "skills": {"巧撃": 3}},
 ]
 
 # 装備の名前集合 (2次元配列 p(i, j) の i の集合)
 equip_names = set()
 
-# 武器を1つに固定する場合は weapon を削除
-type_set = {'head', 'torso', 'arms', 'waist', 'legs', 'charm'}
-
+# 1つしか装備できない装備タイプの集合
+single_equip_type_set = {'head', 'torso', 'arms', 'waist', 'legs', 'charm'}
+ 
 # 装備の全属性の集合 (2次元配列 p(i, j) の j の集合)
 attribute_set = set()
-attribute_set = attribute_set | type_set
+attribute_set = attribute_set | single_equip_type_set | {'deffence'}
 
 # 存在するスキルの集合 (後ほど 制約条件(4) の実装で利用)
 skill_set = set()
@@ -1716,7 +1721,7 @@ for equip in equip_all:
         attribute_set.add(skill)
         skill_set.add(skill)
 
-# 装備データの2次元配列を作成 ( p(i, j) の定義に利用 )
+# 装備データ2次元配列を作成 ( p(i, j) の定義に利用 )
 eqinfo_matrix = {}
 for equip in equip_all:
     # 装備タイプの属性データを追加
@@ -1728,38 +1733,215 @@ for equip in equip_all:
     for skill in equip['skills']:
         eqinfo_matrix[equip['name'], skill] = equip['skills'][skill]
 
+    # 装備の防御力を追加
+    eqinfo_matrix[equip['name'], 'deffence'] = equip['deffence']
+
 
 # =============================================================================
-# step2. モデルの作成
+# step2. モデルの定義: パラメータ、変数、制約条件の追加
 # =============================================================================
 
 # モデル定義 空のモデルを作成
 mdl = ConcreteModel(name="dmax model", doc="model for solving damage optimization problem")
 
-
-# =============================================================================
-# step3. モデル定義: パラメータ と 変数の追加
-# =============================================================================
-
-# 装備データの２次元配列をパラメータとしてモデルに追加
+# 装備データ２次元配列をパラメータとしてモデルに追加
 mdl.p = Param(equip_names, attribute_set, default=0, initialize=eqinfo_matrix, within=Integers)
 
 # 装備を何個使うかを表す変数をモデルに追加
 mdl.q = Var(equip_names, within=NonNegativeIntegers, initialize=0) 
 
-# =============================================================================
-# step4. モデル定義: 制約条件の追加
-# =============================================================================
-
 # 制約条件(1): 各部位で使用できる装備の数は 1 以下
 def const_total_equipment_type(mdl, eqtype):
     return sum(mdl.q[eqname]*mdl.p[eqname,eqtype] for eqname in equip_names) <= 1
 
-mdl.const_total_equipment_type = Constraint(type_set, rule=const_total_equipment_type)
+mdl.const_total_equipment_type = Constraint(single_equip_type_set, rule=const_total_equipment_type)
 
-# 現在のモデルの詳細を表示
+
+# =============================================================================
+# step3. モデルの出力
+# =============================================================================
+
+# モデルの詳細を表示
 print(mdl.pprint())
 ```
+
+step1 の部分では `equip_all` という全装備のデータが保存された変数をベースに、以下の3つのデータを準備しています。
+
+| python 変数名 | 用途 |
+| ---- | ---- |
+| `equip_all` | 全ての装備データが保存された変数<br>この入力データをベースに以下の3つのデータを準備する |
+| `equip_names` | 装備名のインデックス (表の縦軸) |
+| `attribute_set` | 装備の属性のインデックス (表の横軸) |
+| `eqinfo_matrix` | 装備データの2次元配列<br>`equip_names` と `attribute_set` で引いて装備データを取得できる | 
+
+TODO: 図を準備して直接変数名を書き込んで図示したほうがわかりやすい
+
+step2 の部分では空のモデルを作成し、パラメータと変数をモデルに追加しています。
+
+以下の部分では `Param` クラスを利用し、装備データ2次元配列を `mdl.p` としてモデルに追加しています。
+`Param` インスタンスの位置引数としては、第1引数に縦軸である装備名インデックス `equip_names` を指定し、第2引数に装備の属性インデックス `attribute_set` を指定しています。
+`Param` インスタンスのキーワード引数としては、`initialize=eqinfo_matrix` により装備データ2次元配列を指定しています。この2次元配列は `equip_names` と `attribute_set` で参照できる必要があります。
+また、キーワード引数 `default=0` を指定しているため、インデックスで `eqinfo_matrix` を参照した結果が存在しない場合は、0 という値で埋められます。
+例えば、`eqinfo_matrix['挑戦の護石Ⅱ', 'deffence']` の値は存在しないので、`mdl.p('挑戦の護石Ⅱ', 'deffence') = 0` になります。
+
+```py
+# 装備データ２次元配列をパラメータとしてモデルに追加
+mdl.p = Param(equip_names, attribute_set, default=0, initialize=eqinfo_matrix, within=Integers)
+```
+
+以下の部分では `Var` クラスを利用し、解の変数を `mdl.q` としてモデルに追加しています。
+インデックスは位置引数 `equip_names` により指定されています。
+最適化の完了によってこの変数 `mdl.q` に最適解が入ります。
+
+```py
+# 装備を何個使うかを表す変数をモデルに追加
+mdl.q = Var(equip_names, within=NonNegativeIntegers, initialize=0) 
+```
+
+最後に以下の部分で、制約条件(1) をモデルに追加しています。
+> 制約条件(1): 各部位で使用できる装備の数は 1 以下
+
+クラス `Constraint` の第1引数にインデックスを指定することによって、インデックスのすべての要素に対して `rule=` に指定された制約式を定義することができます。<br>
+今回のケースではインデックスとして `single_equip_type_set` が指定されているため、1部位しか装備できない装備タイプのすべてについて `rule=` に指定された制約式を定義しています。
+
+```py
+# 1つしか装備できない装備タイプの集合
+single_equip_type_set = {'head', 'torso', 'arms', 'waist', 'legs', 'charm'}
+ 
+# 制約条件(1): 各部位で使用できる装備の数は 1 以下
+def const_total_equipment_type(mdl, eqtype):
+    return sum(mdl.q[eqname]*mdl.p[eqname,eqtype] for eqname in equip_names) <= 1
+
+mdl.const_total_equipment_type = Constraint(single_equip_type_set, rule=const_total_equipment_type)
+```
+
+つまり、上記の制約式の定義は以下のように部位ごとに定義した場合と同等です。
+
+```py
+# 使用できる head の装備の数は 1 以下
+def const_total_equipment_type_head(mdl, eqtype):
+    return sum(mdl.q[eqname]*mdl.p[eqname, 'head'] for eqname in equip_names) <= 1
+
+mdl.const_total_equipment_type_head = Constraint(rule=const_total_equipment_type_head)
+
+# 使用できる torso の装備の数は 1 以下
+def const_total_equipment_type_torso(mdl, eqtype):
+    return sum(mdl.q[eqname]*mdl.p[eqname, 'torso'] for eqname in equip_names) <= 1
+
+mdl.const_total_equipment_type_torso = Constraint(rule=const_total_equipment_type_torso)
+
+# arms, waist, legs, charm も同様
+```
+
+それでは実際に実行してモデルの詳細を表示してみましょう。
+
+```sh
+❯ uv run dmax-mini-1.py
+model for solving damage optimization problem
+... 省略
+```
+
+`1 Param Declarations` のセクションを見ると、コード中でモデルに追加した装備データ2次元配列 `mdl.p` のデータが入っていることが確認できます。
+`('ラギアアームα', 'arms') :     1` 等の表示から、インデックスとそれに対応する値が正しく反映されていることが確認できます。
+
+```sh
+    1 Param Declarations
+        p : Size=442, Index=p_index, Domain=Integers, Default=0, Mutable=False
+            Key                        : Value
+                   ('ラギアアームα', 'arms') :     1
+               ('ラギアアームα', 'deffence') :    64
+               ('ラギアアームα', 'スタミナ急速回復') :     2
+                   ('ラギアアームα', '弱点特効') :     1
+                ('ラギアアームα', '水場・油泥適応') :     1
+                  ('ラギアアームα', '海竜の渦雷') :     1
+                 ('ラギアアームα', '革細工の柔性') :     1
+    ... 省略
+```
+
+`1 Var Declarations` のセクションを見ると、コード中でモデルに追加した解変数 `mdl.q` のデータが登録されていることがわかります。
+`key` の列に装備名が並んでおり、`equip_names` をインデックスとして定義されていることがわかります。
+
+```sh
+    1 Var Declarations
+        q : Size=17, Index=q_index
+            Key        : Lower : Value : Upper : Fixed : Stale : Domain
+               ラギアアームα :     0 :     0 :  None : False : False : NonNegativeIntegers
+              ラギアグリーヴα :     0 :     0 :  None : False : False : NonNegativeIntegers
+               ラギアコイルα :     0 :     0 :  None : False : False : NonNegativeIntegers
+               ラギアヘルムα :     0 :     0 :  None : False : False : NonNegativeIntegers
+               ラギアメイルα :     0 :     0 :  None : False : False : NonNegativeIntegers
+              レギオスアームα :     0 :     0 :  None : False : False : NonNegativeIntegers
+             レギオスグリーヴα :     0 :     0 :  None : False : False : NonNegativeIntegers
+              レギオスコイルα :     0 :     0 :  None : False : False : NonNegativeIntegers
+              レギオスヘルムα :     0 :     0 :  None : False : False : NonNegativeIntegers
+              レギオスメイルα :     0 :     0 :  None : False : False : NonNegativeIntegers
+             レダゼルトアームγ :     0 :     0 :  None : False : False : NonNegativeIntegers
+            レダゼルトグリーヴγ :     0 :     0 :  None : False : False : NonNegativeIntegers
+             レダゼルトコイルγ :     0 :     0 :  None : False : False : NonNegativeIntegers
+             レダゼルトヘルムγ :     0 :     0 :  None : False : False : NonNegativeIntegers
+             レダゼルトメイルγ :     0 :     0 :  None : False : False : NonNegativeIntegers
+                反攻の護石Ⅲ :     0 :     0 :  None : False : False : NonNegativeIntegers
+                挑戦の護石Ⅱ :     0 :     0 :  None : False : False : NonNegativeIntegers
+```
+
+`1 Constraint Declarations` のセクションには制約条件(1)が登録されていることがわかります。
+
+このセクションは興味深いです。Body 列を見ると対応する部位に対応する装備の変数のみが制約式として残っていることが確認できます。
+例えば `key=arms` の行では `Body= q[レギオスアームα] + q[ラギアアームα] + q[レダゼルトアームγ]` となっており、腕防具だけが残されている事がわかります。
+ 
+
+```sh
+    1 Constraint Declarations
+        const_total_equipment_type : Size=6, Index=const_total_equipment_type_index, Active=True
+            Key   : Lower : Body                                       : Upper : Active
+             arms :  -Inf :    q[レギオスアームα] + q[ラギアアームα] + q[レダゼルトアームγ] :   1.0 :   True
+            charm :  -Inf :                      q[反攻の護石Ⅲ] + q[挑戦の護石Ⅱ] :   1.0 :   True
+             head :  -Inf :    q[レダゼルトヘルムγ] + q[ラギアヘルムα] + q[レギオスヘルムα] :   1.0 :   True
+             legs :  -Inf : q[レダゼルトグリーヴγ] + q[レギオスグリーヴα] + q[ラギアグリーヴα] :   1.0 :   True
+            torso :  -Inf :    q[ラギアメイルα] + q[レギオスメイルα] + q[レダゼルトメイルγ] :   1.0 :   True
+            waist :  -Inf :    q[レギオスコイルα] + q[レダゼルトコイルγ] + q[ラギアコイルα] :   1.0 :   True
+
+    8 Declarations: p_index_0 p_index_1 p_index p q_index q const_total_equipment_type_index const_total_equipment_type
+None
+```
+
+コード中では以下のように、`for eqname in equip_names` で定義しているため、全ての装備の `arms` 属性の合計として定義しており、 腕防具ではない防具も含まれています。
+しかし、モデル定義を表示してみると上記のように腕防具のみの制約式になっています。
+
+```py
+# 1つしか装備できない装備タイプの集合
+single_equip_type_set = {'head', 'torso', 'arms', 'waist', 'legs', 'charm'}
+ 
+# 制約条件(1): 各部位で使用できる装備の数は 1 以下
+def const_total_equipment_type(mdl, eqtype):
+    return sum(mdl.q[eqname]*mdl.p[eqname,eqtype] for eqname in equip_names) <= 1
+
+mdl.const_total_equipment_type = Constraint(single_equip_type_set, rule=const_total_equipment_type)
+```
+
+これはつまり、モデリングツールの時点で既に制約式の最適化が行われているということです。
+したがって、コード上でがんばって部位ごとのデータ集合を作成して、部位ごとに制約式の定義を分ける必要はないことがわかります。
+
+プログラミングの勘所として「素人が簡単に思いつくようなコード上の最適化や高速化はコンパイラや最適化ソルバーによって一瞬で解決されるため、小手先の最適化は誤差」というものがあります。
+なので私は、「コード上で簡単な変数削減などを行っても最適化ソルバーを通せば誤差レベルだろう」という直感がありました。
+しかし、最適化ソルバーより前の段階で既にモデリングツールによって最適化が行われているとは驚きでした。
+最適化シミュの高速化を試みるときには、`pprint()` メソッドによってモデルの詳細をぜひ確認したいですね。
+
+
+さて、この状態ではまだ目的関数を定義していないので、最適化はできません。
+
+
+次の `dmax-mini-2.py` では制約式(2)を実装し、さらに目的関数として防御力の合計値を実装してみましょう。
+これによって簡易的なスキルシミュレータが完成します。
+
+まずは実装全体を示し、後に `dmax-mini-1.py` から追加したコードの説明をします。<br>
+`dmax-mini-2.py` は以下です。実行方法は `$ uv run dmax-mini-1.py` です。
+
+:::details dmax-mini-2.py
+```py
+```
+:::
+
 
 
 
@@ -2162,6 +2344,9 @@ model for solving damage optimization problem
 ## 変数同士の掛け算は解くのが遅くなる
 
 ## 書きたいこと
+
+- 最初に実行から入ったほうが興味をもたれやすいかも
+  - web版 dmax があるからいいかな...?
 
 - 結論だけみたい人、最終成果物だけみたい人にはそれを誘導したい
 
