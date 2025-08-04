@@ -25,9 +25,9 @@
 
 check list
 - [x] dmax-mini-1.py の解説 制約(1)
-- [ ] dmax-mini-2.py の解説 制約(1), (2)
-- [ ] dmax-mini-3.py の解説 制約(1), (2), (3)
-- [ ] dmax-mini-4.py の解説 制約(1), (2), (3), (4), (5), (6) + ダメージ計算式
+- [x] dmax-mini-2.py の解説 制約(2)
+- [ ] dmax-mini-3.py の解説 制約(3)
+- [ ] dmax-mini-4.py の解説 制約(4), (5), (6) + ダメージ計算式
 - [ ] 環境構築
 - [ ] dmax.py の準備
 - [ ] dmax.py の解説

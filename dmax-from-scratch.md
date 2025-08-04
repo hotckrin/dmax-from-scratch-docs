@@ -1798,11 +1798,13 @@ mdl.p = Param(equip_names, attribute_set, default=0, initialize=eqinfo_matrix, w
 mdl.q = Var(equip_names, within=NonNegativeIntegers, initialize=0) 
 ```
 
+TODO: 展開形式を先に提示したほうがわかりやすいかも 要検討
+
 最後に以下の部分で、制約条件(1) をモデルに追加しています。
 > 制約条件(1): 各部位で使用できる装備の数は 1 以下
 
-クラス `Constraint` の第1引数にインデックスを指定することによって、インデックスのすべての要素に対して `rule=` に指定された制約式を定義することができます。<br>
-今回のケースではインデックスとして `single_equip_type_set` が指定されているため、1部位しか装備できない装備タイプのすべてについて `rule=` に指定された制約式を定義しています。
+クラス `Constraint` では第1引数にインデックスを指定することによって、インデックスのすべての要素に対して `rule=` に指定された制約式を定義することができます。<br>
+`rule=` に指定した関数は第2引数でインデックスの各要素を受け取ります。
 
 ```py
 # 1つしか装備できない装備タイプの集合
@@ -1815,17 +1817,20 @@ def const_total_equipment_type(mdl, eqtype):
 mdl.const_total_equipment_type = Constraint(single_equip_type_set, rule=const_total_equipment_type)
 ```
 
+今回のケースではインデックスとして `single_equip_type_set` が指定されているため、1部位しか装備できない装備タイプのすべてについて `rule=` に指定された制約式を定義しています。<br>
+`rule=` に指定されている関数 `const_total_equipment_type(mdl, eqtype)` では第2引数として `eqtype` を受け取っており、ここに `single_equip_type_set` の各要素が入ります。
+
 つまり、上記の制約式の定義は以下のように部位ごとに定義した場合と同等です。
 
 ```py
 # 使用できる head の装備の数は 1 以下
-def const_total_equipment_type_head(mdl, eqtype):
+def const_total_equipment_type_head(mdl):
     return sum(mdl.q[eqname]*mdl.p[eqname, 'head'] for eqname in equip_names) <= 1
 
 mdl.const_total_equipment_type_head = Constraint(rule=const_total_equipment_type_head)
 
 # 使用できる torso の装備の数は 1 以下
-def const_total_equipment_type_torso(mdl, eqtype):
+def const_total_equipment_type_torso(mdl):
     return sum(mdl.q[eqname]*mdl.p[eqname, 'torso'] for eqname in equip_names) <= 1
 
 mdl.const_total_equipment_type_torso = Constraint(rule=const_total_equipment_type_torso)
@@ -1927,22 +1932,344 @@ mdl.const_total_equipment_type = Constraint(single_equip_type_set, rule=const_to
 しかし、最適化ソルバーより前の段階で既にモデリングツールによって最適化が行われているとは驚きでした。
 最適化シミュの高速化を試みるときには、`pprint()` メソッドによってモデルの詳細をぜひ確認したいですね。
 
+`dmax-mini-1.py` の実装状況は以下の通りです。
 
-さて、この状態ではまだ目的関数を定義していないので、最適化はできません。
+| 実装完了 |  制約条件   |                                   制約内容                                   |
+| -------- | ----------- | ---------------------------------------------------------------------------- |
+| ✅      | 制約条件(1) | 各部位で装備できる個数は1以下 (部位は次の7つ 頭・胴・腕・腰・脚・護石・武器) |
+|          | 制約条件(2) | ユーザが指定したスキルレベルの条件を満たす                                   |
+|          | 制約条件(3) | 装飾品はスロットレベル以上の大きさのスロットにしか装着できない               |
+|          | 制約条件(4) | ダメージ計算式において有効な同名スキルのスキルレベルは1つのみ                |
+|          | 制約条件(5) | ダメージ計算式において有効なスキルは装備中のスキルのみ                       |
+|          | 制約条件(6) | 会心率の上限は100%                                                           |
 
 
+
+さて、この状態ではまだ目的関数を定義していないので、最適化はできません。<br>
 次の `dmax-mini-2.py` では制約式(2)を実装し、さらに目的関数として防御力の合計値を実装してみましょう。
 これによって簡易的なスキルシミュレータが完成します。
 
-まずは実装全体を示し、後に `dmax-mini-1.py` から追加したコードの説明をします。<br>
-`dmax-mini-2.py` は以下です。実行方法は `$ uv run dmax-mini-1.py` です。
+まずは実装全体を示し、後に `dmax-mini-1.py` と `dmax-mini-2.py` の差分コードの説明をします。<br>
+`dmax-mini-2.py` は以下です。実行方法は `$ uv run dmax-mini-2.py` です。
 
 :::details dmax-mini-2.py
 ```py
+# dmax-mini-2.py : 制約条件(1)-(2) を実装
+from pyomo.environ import *
+
+# =============================================================================
+# step1. 入力データ読み込み: 装備データの２次元配列作成、配列のインデックス作成
+# =============================================================================
+
+equip_all = [
+    {"type": "head",  "name": "レダゼルトヘルムγ",   "deffence": 68, "slots": [3, 0, 0], "skills": {"煌雷竜の力": 1, "ヌシの魂": 1, "弱点特効": 1, "渾身": 1, "スタミナ急速回復": 1}},
+    {"type": "torso", "name": "レダゼルトメイルγ",   "deffence": 68, "slots": [1, 0, 0], "skills": {"煌雷竜の力": 1, "ヌシの魂": 1, "力の解放": 3}},
+    {"type": "arms",  "name": "レダゼルトアームγ",   "deffence": 68, "slots": [3, 3, 0], "skills": {"煌雷竜の力": 1, "ヌシの魂": 1, "回避距離ＵＰ": 2}},
+    {"type": "waist", "name": "レダゼルトコイルγ",   "deffence": 68, "slots": [0, 0, 0], "skills": {"煌雷竜の力": 1, "ヌシの魂": 1, "力の解放": 2, "渾身": 2}},
+    {"type": "legs",  "name": "レダゼルトグリーヴγ", "deffence": 68, "slots": [3, 0, 0], "skills": {"煌雷竜の力": 1, "ヌシの魂": 1, "スタミナ急速回復": 2, "気絶耐性": 3}},
+
+    {"type": "head",  "name": "ラギアヘルムα",       "deffence": 64, "slots": [2, 1, 0], "skills": {"海竜の渦雷": 1, "渾身": 2, "力の解放": 1, "革細工の柔性": 1}},
+    {"type": "torso", "name": "ラギアメイルα",       "deffence": 64, "slots": [2, 1, 0], "skills": {"海竜の渦雷": 1, "雷耐性": 2,  "弱点特効": 1, "スタミナ急速回復": 1, "革細工の柔性": 1}},
+    {"type": "arms",  "name": "ラギアアームα",       "deffence": 64, "slots": [2, 0, 0], "skills": {"海竜の渦雷": 1, "スタミナ急速回復": 2, "弱点特効": 1, "水場・油泥適応": 1, "革細工の柔性": 1}},
+    {"type": "waist", "name": "ラギアコイルα",       "deffence": 64, "slots": [2, 1, 1], "skills": {"海竜の渦雷": 1, "弱点特効": 1, "渾身": 1, "水場・油泥適応": 1, "革細工の柔性": 1}},
+    {"type": "legs",  "name": "ラギアグリーヴα",     "deffence": 64, "slots": [0, 0, 0], "skills": {"海竜の渦雷": 1, "弱点特効": 2, "力の解放": 1, "雷耐性": 1, "革細工の柔性": 1}},
+
+    {"type": "head",  "name": "レギオスヘルムα",     "deffence": 64, "slots": [3, 0, 0], "skills": {"千刃竜の闘志": 1, "巧撃": 1, "逆襲": 1, "裂傷耐性": 1, "鱗張りの技法": 1}},
+    {"type": "torso", "name": "レギオスメイルα",     "deffence": 64, "slots": [1, 0, 0], "skills": {"千刃竜の闘志": 1, "回避性能": 2, "挑戦者": 1, "逆襲": 1, "鱗張りの技法": 1}},
+    {"type": "arms",  "name": "レギオスアームα",     "deffence": 64, "slots": [2, 0, 0], "skills": {"千刃竜の闘志": 1, "巧撃": 2, "回避距離ＵＰ": 1, "鱗張りの技法": 1}},
+    {"type": "waist", "name": "レギオスコイルα",     "deffence": 64, "slots": [2, 0, 0], "skills": {"千刃竜の闘志": 1, "回避性能": 2, "挑戦者": 1, "裂傷耐性": 1, "鱗張りの技法": 1}},
+    {"type": "legs",  "name": "レギオスグリーヴα",   "deffence": 64, "slots": [0, 0, 0], "skills": {"千刃竜の闘志": 1, "巧撃": 2, "挑戦者": 1, "裂傷耐性": 1, "鱗張りの技法": 1}},
+
+    {"type": "charm", "name": "挑戦の護石Ⅱ", "slots": [0,0,0], "skills": {"挑戦者": 2}},
+    {"type": "charm", "name": "反攻の護石Ⅲ", "slots": [0,0,0], "skills": {"巧撃": 3}},
+]
+
+# 装備の名前集合 (2次元配列 p(i, j) の i の集合)
+equip_names = set()
+
+# 1つしか装備できない装備タイプの集合
+single_equip_type_set = {'head', 'torso', 'arms', 'waist', 'legs', 'charm'}
+
+# 装備の全属性の集合 (2次元配列 p(i, j) の j の集合)
+attribute_set = set()
+attribute_set = attribute_set | single_equip_type_set | {'deffence'}
+
+# 存在するスキルの集合 (後ほど 制約条件(4) の実装で利用)
+skill_set = set()
+
+for equip in equip_all:
+    # 装備名の集合に追加
+    equip_names.add(equip['name'])
+
+    # 属性の集合に追加
+    for skill in equip['skills']:
+        attribute_set.add(skill)
+        skill_set.add(skill)
+
+# 装備データの2次元配列を作成 ( p(i, j) の定義に利用 )
+eqinfo_matrix = {}
+for equip in equip_all:
+    # 装備タイプの属性データを追加
+    # 例: eqinfo_matrix['レダゼルトヘルムγ', 'head'] = 1
+    eqinfo_matrix[equip['name'], equip['type']] = 1
+
+    # 装備についているスキルの属性データを追加
+    # 例: eqinfomatrix['反攻の護石Ⅲ', '巧撃'] = 3
+    for skill in equip['skills']:
+        eqinfo_matrix[equip['name'], skill] = equip['skills'][skill]
+
+    # 装備の防御力を追加
+    eqinfo_matrix[equip['name'], 'deffence'] = equip['deffence'] if 'deffence' in equip else 0
+
+# ユーザが指定する必須スキルレベルのデータ
+required_skills = {
+    "逆襲": 2,
+    "巧撃": 0,
+    "挑戦者": 0,
+    "弱点特効": 0,
+    "渾身": 0,
+    "力の解放": 0,
+    "煌雷竜の力": 0,
+    "ヌシの魂": 0,
+    "海竜の渦雷": 0,
+    "千刃竜の闘志": 0,
+    "スタミナ急速回復": 0,
+    "回避距離ＵＰ": 0,
+    "気絶耐性": 0,
+    "革細工の柔性": 0,
+    "雷耐性": 0,
+    "水場・油泥適応": 0,
+    "裂傷耐性": 0,
+    "鱗張りの技法": 0,
+    "回避性能": 0,
+}
+
+
+# =============================================================================
+# step2. モデルの定義: パラメータ、変数、制約条件、目的関数の追加
+# =============================================================================
+
+# モデル定義 空のモデルを作成
+mdl = ConcreteModel(name="dmax model", doc="model for solving damage optimization problem")
+
+# 装備データの２次元配列をパラメータとしてモデルに追加
+mdl.p = Param(equip_names, attribute_set, default=0, initialize=eqinfo_matrix, within=Integers)
+
+# 装備を何個使うかを表す変数をモデルに追加
+mdl.q = Var(equip_names, within=NonNegativeIntegers, initialize=0) 
+
+# 制約条件(1): 各部位で使用できる装備の数は 1 以下
+def const_total_equipment_type(mdl, eqtype):
+    return sum(mdl.q[eqname]*mdl.p[eqname,eqtype] for eqname in equip_names) <= 1
+
+mdl.const_total_equipment_type = Constraint(single_equip_type_set, rule=const_total_equipment_type)
+
+# ユーザが指定した必須スキルレベルをパラメータとしてモデルに追加
+mdl.r = Param(required_skills.keys(), default=0, initialize=required_skills, within=Integers)
+
+# 制約条件(2): ユーザが指定したスキルレベルの条件を満たす
+def const_skill_point(mdl, skill):
+    return sum(mdl.q[eqname]*mdl.p[eqname,skill] for eqname in equip_names) >= mdl.r[skill]
+
+mdl.const_skill_point = Constraint(required_skills.keys(), rule=const_skill_point)
+
+# 目的関数: 防御力の合計を最大化
+def objective(mdl):
+    return sum(mdl.q[eqname] * mdl.p[eqname, 'deffence'] for eqname in equip_names) 
+
+mdl.OBJ = Objective(rule=objective, sense=maximize)
+
+
+# =============================================================================
+# step3. モデルの出力
+# =============================================================================
+
+# モデルの詳細を表示
+print(mdl.pprint())
+
+# 問題ファイルを出力
+import os
+output_filename = f"{os.path.splitext(os.path.basename(__file__))[0]}-problem.nl"
+mdl.write(output_filename, format="nl", io_options={'symbolic_solver_labels': True})
 ```
 :::
 
+`dmax-mini-1.py` と `dmax-mini-2.py` の差分コードの説明をします。
 
+以下の dict 変数 `required_skills` はスキルレベルの下限を設定しています。
+スキルシミュレーターでユーザーが必須スキルのレベルを指定する部分に相当します。
+実際のアプリケーションとして提供する際にはこのようにハードコードするのではなく、UIから入力できるように実装する必要があります。
+
+```py
+required_skills = {
+    "逆襲": 2,
+    "巧撃": 0,
+    "挑戦者": 0,
+    # 省略
+}
+```
+
+以下の部分では、ユーザが指定した必須スキルレベルのデータ `required_skills` をパラメータ `mdl.r` としてモデルに追加しています。<br>
+`mdl.r` の定義においてもインデックスとして `required_skills.keys()` を指定することで一括でパラメータを追加しています。
+
+関数 `const_skill_point()` では以下のような形で制約条件(2)に相当する式を定義しています。
+
+> (全装備の `skill` 属性の合計) >= (ユーザが指定した `skill` の下限レベル)
+
+```py
+# ユーザが指定した必須スキルレベルをパラメータとしてモデルに追加
+mdl.r = Param(required_skills.keys(), default=0, initialize=required_skills, within=Integers)
+
+# 制約条件(2): ユーザが指定したスキルレベルの条件を満たす
+def const_skill_point(mdl, skill):
+    return sum(mdl.q[eqname]*mdl.p[eqname,skill] for eqname in equip_names) >= mdl.r[skill]
+
+mdl.const_skill_point = Constraint(required_skills.keys(), rule=const_skill_point)
+```
+
+以下の部分では目的関数として防御力の合計値を設定し、最大化する方針でモデルに追加しています。
+
+> (全ての装備の `deffence` 属性の合計)
+
+```py
+# 目的関数: 防御力の合計を最大化
+def objective(mdl):
+    return sum(mdl.q[eqname] * mdl.p[eqname, 'deffence'] for eqname in equip_names) 
+
+mdl.OBJ = Objective(rule=objective, sense=maximize)
+```
+
+今回は防御力の合計を最大化するように指定しましたが、防御力の最小化でもスキルシミュレータとしては機能しますし、別の属性をターゲットにしても構いません。
+最適化シミュレータとして動作させる以上、目的関数が必要なのでとりあえず有用で簡単そうな防御力の合計を指定しただけです。
+
+他の有用そうな目的関数としては例えば装飾品の空きスロット数などが良さそうですね。
+
+最終的にはこの目的関数をダメージ計算式に置き換えることでダメージ最大化シミューレータを実装します。
+
+以下の部分では、最後に問題ファイルを出力を出力しています。<br>
+問題ファイル名はファイル名から取得するようになっており、ファイル名 `dmax-mini-2.py` の場合は、問題ファイル `dmax-mini-2-problem.nl` というファイル名前のファイルが出力されます。<br>
+このファイルを SCIP ソルバーに入力することで最適解が得られます。
+
+```py
+# 問題ファイルを出力
+import os
+output_filename = f"{os.path.splitext(os.path.basename(__file__))[0]}-problem.nl"
+mdl.write(output_filename, format="nl", io_options={'symbolic_solver_labels': True})
+```
+
+`dmax-mini-1.py` からの差分は以上です。
+
+それでは `dmax-mini-2.py` を実行して問題ファイルを出力し、SCIP ソルバーに最適化させてみましょう。
+
+`dmax-mini-2.py` を実行するとまず、`mdl.pprint()` によってモデル詳細が出力されます。<br>
+出力内容から、パラメータ `mdl.r`、目的関数 `mdl.OBJ`、そして制約条件 `mdl.const_skill_point` が追加されていることが確認できます。<br>
+`dmax-mini-1.py` のときと同様に `mdl.const_skill_point` の制約式においても関係のある装備だけが抽出されていることがわかりますね。
+
+```sh
+$ uv run dmax-mini-2.py
+model for solving damage optimization problem
+...省略
+    2 Param Declarations
+        ...省略
+        r : Size=19, Index=r_index, Domain=Integers, Default=0, Mutable=False
+            Key      : Value
+            スタミナ急速回復 :     0
+                ヌシの魂 :     0
+    ...省略
+
+    1 Objective Declarations
+        OBJ : Size=1, Index=None, Active=True
+            Key  : Active : Sense    : Expression
+            None :   True : maximize : 64*q[ラギアヘルムα] + 64*q[レギオスヘルムα] + 68*q[レダゼルトヘルムγ] + 64*q[レギオスコイルα] + 64*q[ラギアメイルα] + 64*q[ラギアアームα] + 64*q[ラギアグリーヴα] + 64*q[ラギアコイルα] + 68*q[レダゼルトアームγ] + 64*q[レギオスグリーヴα] + 68*q[レダゼルトコイルγ] + 68*q[レダゼルトグリーヴγ] + 68*q[レダゼルトメイルγ] + 64*q[レギオスメイルα] + 64*q[レギオスアームα]
+
+    2 Constraint Declarations
+        const_skill_point : Size=19, Index=const_skill_point_index, Active=True
+            Key      : Lower : Body                                                                      : Upper : Active
+            スタミナ急速回復 :   0.0 :                q[レダゼルトヘルムγ] + q[ラギアメイルα] + 2*q[ラギアアームα] + 2*q[レダゼルトグリーヴγ] :  +Inf :   True
+                ヌシの魂 :   0.0 : q[レダゼルトヘルムγ] + q[レダゼルトアームγ] + q[レダゼルトコイルγ] + q[レダゼルトグリーヴγ] + q[レダゼルトメイルγ] :  +Inf :   True
+...省略
+```
+
+また、`mdl.write()` によって問題ファイル `dmax-mini-2-problem.nl` が出力されていることも確認できます。
+このファイルをSCIPソルバーに入力して最適化しましょう。
+
+```sh
+$ ls -lh  | grep dmax-mini-2-prob
+-rw-r--r-- 1 hoge hoge  458 Aug  4 21:30 dmax-mini-2-problem.col
+-rw-r--r-- 1 hoge hoge 2.6K Aug  4 21:30 dmax-mini-2-problem.nl
+-rw-r--r-- 1 hoge hoge  840 Aug  4 21:30 dmax-mini-2-problem.row
+```
+
+以下のようにSCIPソルバーを起動し、コマンドを実行します。
+
+```sh
+$ rlwrap -f . -c /home/dmax-scratch/SCIPOptSuite-8.0.3-Linux/bin/scip
+SCIP> read dmax-mini-2-problem.nl
+SCIP> optimize
+SCIP> display solution
+```
+
+実行結果は以下のようになりました。
+`required_skills` において `逆襲Lv2` を指定しているため、`レギオスヘルムα (逆襲Lv1)` と `レギオスメイルα (逆襲Lv1)` が採用されていることが分かります。
+
+```sh
+$ rlwrap -f . -c /home/dmax-scratch/SCIPOptSuite-8.0.3-Linux/bin/scip
+
+SCIP> read dmax-mini-2-problem.nl
+...省略
+
+SCIP> optimize
+...省略
+SCIP Status        : problem is solved [optimal solution found]
+Solving Time (sec) : 0.00
+Solving Nodes      : 0
+Primal Bound       : +3.32000000000000e+02 (1 solutions)
+Dual Bound         : +3.32000000000000e+02
+Gap                : 0.00 %
+
+SCIP> display solution
+
+objective value:                                  332
+q[レギオスヘルムα]                          1   (obj:64)
+q[レギオスメイルα]                          1   (obj:64)
+q[レダゼルトアームγ]                       1    (obj:68)
+q[レダゼルトグリーヴγ]                    1     (obj:68)
+q[レダゼルトコイルγ]                       1    (obj:68)
+q[反攻の護石Ⅲ]                               1  (obj:0)
+
+SCIP>
+```
+
+装備データを確認すると、他に逆襲スキルが付いた防具はありません。
+したがって、`required_skills` において `逆襲Lv3` を指定すれば装備が組めなくなるはずです。
+ぜひ `required_skills` を修正して再実行して試してみてください。
+
+以下のように SCIP Status が `infeasible` となり、指定された条件は実現不可能であるという結果が返ってくるはずです。
+
+```sh
+SCIP> optimize
+...省略
+SCIP Status        : problem is solved [infeasible]
+...省略
+```
+
+`dmax-mini-2.py` の実装状況は以下の通りです。<br>
+`dmax-mini-2.py` では制約条件(1), (2)に加えて目的関数を追加したことにより、簡易的なスキルシミュレータが完成しました。
+
+| 実装完了 |  制約条件   |                                   制約内容                                   |
+| -------- | ----------- | ---------------------------------------------------------------------------- |
+| ✅      | 制約条件(1) | 各部位で装備できる個数は1以下 (部位は次の7つ 頭・胴・腕・腰・脚・護石・武器) |
+| ✅      | 制約条件(2) | ユーザが指定したスキルレベルの条件を満たす                                   |
+|          | 制約条件(3) | 装飾品はスロットレベル以上の大きさのスロットにしか装着できない               |
+|          | 制約条件(4) | ダメージ計算式において有効な同名スキルのスキルレベルは1つのみ                |
+|          | 制約条件(5) | ダメージ計算式において有効なスキルは装備中のスキルのみ                       |
+|          | 制約条件(6) | 会心率の上限は100%                                                           |
+
+`dmax-mini-2.py` では装飾品を考慮していません。<br>
+`dmax-mini-3.py` では制約条件(3)を実装して装飾品を扱えるようにしましょう。ここまで実装すればスキルシミュレーターの機能は完成です。
+
+装飾品の条件の実装自体は少ないですが、制約式に落とし込む部分で一捻り必要です。
+まずは制約条件(3)の定式化から説明します。
 
 
 
@@ -2344,6 +2671,10 @@ model for solving damage optimization problem
 ## 変数同士の掛け算は解くのが遅くなる
 
 ## 書きたいこと
+
+- 立式のルールを短く解説する
+  - 一番困るのはここのはず
+  - 解はなにか、パラメータはなにか、補助変数の導入
 
 - 最初に実行から入ったほうが興味をもたれやすいかも
   - web版 dmax があるからいいかな...?
