@@ -2296,8 +2296,16 @@ SCIP Status        : problem is solved [infeasible]
 使用できるスロットはLv1スロットの枠だけであり、仮にLv2スロットやLv3スロットの枠が余っていてもLv1装飾品は装着できない条件であることがわかります。
 
 $$
-(装備中のLv1スロットの数) \geq (装備中のLv1装飾品の数) \\
-(装備中のLv2スロットの数) \geq (装備中のLv2装飾品の数) \\
+(\text{装備中のLv1スロットの数}) \geq (\text{装備中のLv1装飾品の数}) \\
+(\text{装備中のLv2スロットの数}) \geq (\text{装備中のLv2装飾品の数}) \\
+$$
+
+横幅を短くするため `(装備中のLv1スロットの数)` を省略して `(Lv1スロ数)` と表記することにします。
+`(装備中のLv2装飾品の数)` も同様に `(Lv2装飾品数)` と表記することにします。
+
+$$
+(\text{Lv1スロ数}) \geq (\text{Lv1装飾品数}) \\
+(\text{Lv2スロ数}) \geq (\text{Lv2装飾品数}) \\
 $$
 
 制約条件(3A)を図示すると以下のようになります。Lv2スロット群とLv1スロット群の間には壁があり、Lv2スロットの領域とLv1スロットの領域が別れている状態です。
@@ -2318,7 +2326,7 @@ TODO: 対応する図がほしい
 つまり、スロットレベルの概念が消えて、純粋に装備のスロットすうと装飾品数だけを見ている形になります。
 
 $$
-(装備中のLv2スロットの数) + (装備中のLv1スロットの数) \geq (装備中のLv2装飾品の数) + (装備中のLv1装飾品の数)
+(\text{Lv2スロ数}) + (\text{Lv1スロ数}) \geq (\text{Lv2装飾品数}) + (\text{Lv1装飾品数})
 $$
 
 制約条件(3B)を図示すると以下のようになります。
@@ -2333,67 +2341,398 @@ TODO: 対応する頭がほしい
 Lv2装飾品の侵食範囲の限界は装備中のLv2スロットの数です。したがって以下のような式を追加する必要があります。
 
 $$
-制約条件(3C): (装備中のLv2スロットの数) \geq (装備中のLv2装飾品の数)
+(\text{Lv2スロ数}) \geq (\text{Lv2装飾品数})
 $$
 
-制約条件(3B), (3C) を合わせて考えると、
+制約条件(3B) と合わせて考えると以下のようになります。
 
-```
-(装備中のLv2スロ数) + (装備中のLv1スロ数) >= (装備中のLv2装飾品の数) + (装備中のLv1装飾品の数)
-(装備中のLv2スロ数)                       >= (装備中のLv2装飾品の数)
-```
+$$
+\begin{array}{lcl}
+(\text{Lv2スロ数}) + (\text{Lv1スロ数}) & \geq & (\text{Lv2装飾品数}) + (\text{Lv1装飾品数}) \\
+(\text{Lv2スロ数})                      & \geq & (\text{Lv2装飾品数})
+\end{array}
+$$
 
 次はLv3装飾品も考慮に入れましょう。
 
 > 制約条件(3B): 装飾品はどのレベルのスロットにも装着できる
 
-```
-(装備中のLv3スロ数) + (装備中のLv2スロ数) + (装備中のLv1スロ数) >= (装備中のLv3装飾品数) + (装備中のLv2装飾品数) + (装備中のLv1装飾品数)
-```
+についてLv3も考慮に入れた式は以下のようになります。
+
+$$
+\begin{array}{lcl}
+(\text{Lv3スロ数}) + (\text{Lv2スロ数}) + (\text{Lv1スロ数}) & \geq & (\text{Lv3装飾品数}) + (\text{Lv2装飾品数}) + (\text{Lv1装飾品数})
+\end{array}
+$$
 
 TODO: 対応する図がほしい
 
 ここから侵食範囲の限界を設定していきましょう。
-まず、**Lv3装飾品がLv2以下のスロット領域に侵食する方向** を禁止したいです。Lv3装飾品の侵食範囲の限界は装備中のLv3スロットの数です。
+まず、**Lv3装飾品がLv2以下のスロット領域に侵食する方向** を禁止したいです。Lv3装飾品の侵食範囲の限界はLv3スロットの数です。
 したがって以下のようになります。
 
-```diff
-  (装備中のLv3スロ数) + (装備中のLv2スロ数) + (装備中のLv1スロ数) >= (装備中のLv3装飾品数) + (装備中のLv2装飾品数) + (装備中のLv1装飾品数)
-+ (装備中のLv3スロ数)                                             >= (装備中のLv3装飾品数)
-```
+$$
+\begin{array}{lcl}
+(\text{Lv3スロ数}) + (\text{Lv2スロ数}) + (\text{Lv1スロ数}) & \geq & (\text{Lv3装飾品数}) + (\text{Lv2装飾品数}) + (\text{Lv1装飾品数}) \\
+(\text{Lv3スロ数})                                           & \geq & (\text{Lv3装飾品数})
+\end{array}
+$$
 
 さらに、**Lv3装飾品とLv2装飾品がLv1以下のスロット領域に侵食する方向** も禁止したいです。
-Lv3装飾品とLv2装飾品の侵食範囲の限界は装備中のLv3スロットとLv2スロットの数の合計なので左辺は `(装備中のLv3スロ数) + (装備中のLv2スロ数) >=` となります。
+Lv3装飾品とLv2装飾品の侵食範囲の限界はLv3スロットとLv2スロットの数の合計なので左辺は `(Lv3スロ数}) + (Lv2スロ数}) >=` となります。
 したがって以下のようになります。
 
-```diff
-  (装備中のLv3スロ数) + (装備中のLv2スロ数) + (装備中のLv1スロ数) >= (装備中のLv3装飾品数) + (装備中のLv2装飾品数) + (装備中のLv1装飾品数)
-+ (装備中のLv3スロ数) + (装備中のLv2スロ数)                       >= (装備中のLv3装飾品数) + (装備中のLv2装飾品数)
-  (装備中のLv3スロ数)                                             >= (装備中のLv3装飾品数)
-```
+$$
+\begin{array}{lcl}
+(\text{Lv3スロ数}) + (\text{Lv2スロ数}) + (\text{Lv1スロ数}) & \geq & (\text{Lv3装飾品数}) + (\text{Lv2装飾品数}) + (\text{Lv1装飾品数}) \\
+(\text{Lv3スロ数}) + (\text{Lv2スロ数})                      & \geq & (\text{Lv3装飾品数}) + (\text{Lv2装飾品数}) \\
+(\text{Lv3スロ数})                                           & \geq & (\text{Lv3装飾品数})
+\end{array}
+$$
 
 結果的に以下の式にまとめられます。
 
 > 制約条件(3): 装飾品はスロットレベル以上の大きさのスロットにしか装着できない
 
+$$
+\begin{array}{lcl}
+(\text{Lv1以上のスロ数}) & \geq & (\text{Lv1以上の装飾品数}) \\
+(\text{Lv2以上のスロ数}) & \geq & (\text{Lv2以上の装飾品数}) \\
+(\text{Lv3以上のスロ数}) & \geq & (\text{Lv3以上の装飾品数})
+\end{array}
+$$
+
+実装を楽にするために、以下のように移項しておきましょう。
+右辺が0になりループ処理が左辺のみになります。
+
+$$
+\begin{array}{lcl}
+(\text{Lv1以上のスロ数}) - (\text{Lv1以上の装飾品数}) & \geq & 0 \\
+(\text{Lv2以上のスロ数}) - (\text{Lv2以上の装飾品数}) & \geq & 0 \\
+(\text{Lv3以上のスロ数}) - (\text{Lv3以上の装飾品数}) & \geq & 0
+\end{array}
+$$
+
+`Lv1以上のスロ数` は **ある解 $q_{i}$ において使用する装備に付属しているLv1以上の装飾品スロット数の合計** を示しています。
+`Lv1以上の装飾品数` も同様に、**ある解 $q_{i}$ において使用するLv1以上の装飾品の合計数** を示しています。
+
+例えば、ある解 $q_{i}$ がもし以下のような装備の組み合わせだった場合、`(Lv1以上のスロ数) = 8` であり、`(Lv1以上の装飾品数) = 3` です。
+
+|  部位  |      装備名       | スロット |
+| ------ | ----------------- | -------- |
+| 頭     | ラギアヘルムα     | 2-1-0    |
+| 胴     | ラギアメイルα     | 2-1-0    |
+| 腕     | ラギアアームα     | 2-0-0    |
+| 腰     | ラギアコイルα     | 2-1-1    |
+| 脚     | レギオスグリーヴα | 0-0-0    |
+| 護石   | 反攻の護石Ⅲ      | 0-0-0    |
+| 装飾品 | 逆襲珠【２】      | 2        |
+| 装飾品 | 逆襲珠【２】      | 2        |
+| 装飾品 | 体術珠【１】      | 1        |
+
+
+`Lv1以上のスロ数` と `Lv1以上の装飾品数` をまとめて新しい属性 `Lv123RemainSlotNum` (Lv1以上のスロットの余り数) 扱うことにします。
+スロットが (2-1-0) の装備の場合、`(Lv123RemainSlotNum) = 2` 、`(Lv123RemainSlotNum) = 1` となります。
+Lv1の装飾品の場合は、Lv1以上のスロットの余り数を消費すると考え、`(Lv123RemainSlotNum) = -2` となります。
+このように考えると、最終的に以下のような式にまとめられます。
+
+$$
+\begin{array}{lcl}
+(\text{装備中の Lv123RemainSlotNum の合計}) & \geq & 0 \\
+(\text{装備中の Lv23RemainSlotNum の合計})  & \geq & 0 \\
+(\text{装備中の Lv3RemainSlotNum の合計})   & \geq & 0
+\end{array}
+$$
+
+それでは立式した制約条件(3)を `dmax-mini-3.py` に実装していきましょう。
+
+まずは装飾品データを `equip_all` 変数に追加します。
+モンハンワイルズには防具装飾品と武器装飾品がありますが、どちらも処理は同じなので今回は防具装飾品のみ実装しましょう。
+防具装飾品の `type` は `decoArmor` としています。
+
+```diff py
+# 全ての装備データ (防具、護石、装飾品)
+equip_all = [
+    ...省略
+    {"type": "charm", "name": "挑戦の護石Ⅱ", "slots": [0,0,0], "skills": {"挑戦者": 2}},
+    {"type": "charm", "name": "反攻の護石Ⅲ", "slots": [0,0,0], "skills": {"巧撃": 3}},
+
++   {"type": "decoArmor", "name": "反攻珠【３】", "size": 3, "skills": {"巧撃": 1}},
++   {"type": "decoArmor", "name": "逆襲珠【２】", "size": 2, "skills": {"逆襲": 1}},
++   {"type": "decoArmor", "name": "痛撃珠【３】", "size": 3, "skills": {"弱点特効": 1}},
++   {"type": "decoArmor", "name": "渾身珠【２】", "size": 2, "skills": {"渾身": 1}},
++   {"type": "decoArmor", "name": "体術珠【１】", "size": 1, "skills": {"体術": 1}},
++   {"type": "decoArmor", "name": "早気珠【２】", "size": 2, "skills": {"スタミナ急速回復": 1}},
++   {"type": "decoArmor", "name": "挑戦珠【３】", "size": 3, "skills": {"挑戦者": 1}},
++   {"type": "decoArmor", "name": "全開珠【３】", "size": 3, "skills": {"力の解放": 1}},
+]
 ```
-(装備中のLv1以上のスロ数) >= (装備中のLv1以上の装飾品数)
-(装備中のLv2以上のスロ数) >= (装備中のLv2以上の装飾品数)
-(装備中のLv3以上のスロ数) >= (装備中のLv3以上の装飾品数)
+
+次にスロット用の新規属性 `Lv123RemainSlotNum`, `Lv23RemainSlotNum`, `Lv3RemainSlotNum` を実装します。
+
+```diff py
++# 装飾品スロットの属性
++remain_slot_set = {'Lv123RemainSlotNum', 'Lv23RemainSlotNum', 'Lv3RemainSlotNum'}
+
+
+ # 装備の全属性の集合 (2次元配列 p(i, j) の j の集合)
+ attribute_set = set()
+-attribute_set = attribute_set | single_equip_type_set | {'deffence'}
++attribute_set = attribute_set | single_equip_type_set | {'deffence'} | {'decoArmor'} | remain_slot_set
 ```
 
-実装を楽にするために移項すると以下のようになります。
+属性のインデックスが準備できました。
+次は装飾品のスロットレベルデータを利用して `Lv123RemainSlotNum` 等の属性に対応するデータを作成し、装備データの2次元配列 `eqinfo_matrix` に登録します。
+
+```diff py
+# 装備データの2次元配列を作成 ( p(i, j) の定義に利用 )
+eqinfo_matrix = {}
+for equip in equip_all:
+    ... 省略
+
+    # 装備の防御力を追加
+    eqinfo_matrix[equip['name'], 'deffence'] = equip['deffence'] if 'deffence' in equip else 0
+
++   # 装飾品の残りスロット属性を追加
++   if equip['type'] == 'decoArmor':
++       eqinfo_matrix[equip['name'], 'Lv123RemainSlotNum'] =  -1 if equip['size'] >= 1 else 0
++       eqinfo_matrix[equip['name'], 'Lv23RemainSlotNum']  =  -1 if equip['size'] >= 2 else 0
++       eqinfo_matrix[equip['name'], 'Lv3RemainSlotNum']   =  -1 if equip['size'] >= 3 else 0
 
 ```
-(装備中のLv1以上のスロ数) - (装備中のLv1以上の装飾品数) >= 0
-(装備中のLv2以上のスロ数) - (装備中のLv2以上の装飾品数) >= 0
-(装備中のLv3以上のスロ数) - (装備中のLv3以上の装飾品数) >= 0
+
+以下の部分は三項演算子を利用しています。C系列の三項演算子になれていると Python の三項演算子は読みづらいかもしれません。
+
+```py
+eqinfo_matrix[equip['name'], 'Lv123RemainSlotNum'] =  -1 if equip['size'] >= 1 else 0
 ```
 
-それでは立式した制約条件(3)を `dmax-mini-3.py` として実装していきましょう。
+C言語などにおける `(a > b) ? a : b` を Python で書くと `a if (a > b) else b` になります。
+
+「そもそも三項演算子が読みづらい」という指摘があるかもしれませんが、上記のように三項演算子を利用して上下を並べて書ける場合には同じ処理の繰り返しであることがわかりやすく、コンパクトで可読性の高い書き方ができると思います。
+同じ処理なのでループで書くというのも1つの手です。しかし既に for ループの内部でなので、ネストは深くなって可読性が下がってしまいます。
+3つ程度の要素数であればループで書くとむしろ可読性が下がるとも思います。
+
+3項演算子の部分を関数として切り出すのは良いと思います。ただ個人的には関数を次々に追いかける玉ねぎの皮むきみたいなコードリーディングはあまり好きではないので採用しませんでした。
+
+次は装備の余りスロット数属性を追加します。
+装備には複数のスロットがあるため、その装備のスロットを全てチェックして `Lv123RemainSlotNum` などの余りスロット数属性のデータを追加していきます。
+
+```diff py
+# 装備データの2次元配列を作成 ( p(i, j) の定義に利用 )
+eqinfo_matrix = {}
+for equip in equip_all:
+    ...省略
+
+    # 装飾品の残りスロット属性を追加
+    if equip['type'] == 'decoArmor':
+        eqinfo_matrix[equip['name'], 'Lv123RemainSlotNum'] =  -1 if equip['size'] >= 1 else 0
+        eqinfo_matrix[equip['name'], 'Lv23RemainSlotNum']  =  -1 if equip['size'] >= 2 else 0
+        eqinfo_matrix[equip['name'], 'Lv3RemainSlotNum']   =  -1 if equip['size'] >= 3 else 0
+
++   # 装備の残りスロット属性を追加
++   if equip['type'] in single_equip_type_set:
++       eqinfo_matrix[equip['name'], 'Lv123RemainSlotNum'] = len(list(filter(lambda n: n >= 1, equip['slots'])))
++       eqinfo_matrix[equip['name'], 'Lv23RemainSlotNum']  = len(list(filter(lambda n: n >= 2, equip['slots'])))
++       eqinfo_matrix[equip['name'], 'Lv3RemainSlotNum']   = len(list(filter(lambda n: n >= 3, equip['slots'])))
+```
+
+`filter(lambda n: n >= 1, equip['slots'])` の部分では対象の装備のスロット配列 `equip['slots']` のうちレベル1以上の要素のみを抽出しています。
+`len(list(filter(lambda n: n >= 3, equip['slots'])))` の部分ではレベル1以上のスロット数を計算し、`Lv123RemainSlotNum` に対応するデータとして登録しています。
+
+慣れればコンパクトに認識できて良いですが、さすがにこれは関数に切り出すべきだったかもしれません。
 
 
+最後に制約条件(3)を実装しモデルに追加します。
+これまでと同様に、余りスロット数属性の集合 `remain_slot_set` の各要素について `(使用する全ての装備の余りスロット数) >= 0` となる制約式を定義しています。
 
+```py
+# 装飾品スロットの属性
+remain_slot_set = {'Lv123RemainSlotNum', 'Lv23RemainSlotNum', 'Lv3RemainSlotNum'}
+
+# 制約条件(3): 装飾品はスロットレベル以上の大きさのスロットにしか装着できない
+def const_remain_slot_num_armor(mdl, slotlevel):
+    return sum(mdl.q[eqname]*mdl.p[eqname,slotlevel] for eqname in equip_names) >= 0
+
+mdl.const_remain_slot_num_armor = Constraint(remain_slot_set, rule=const_remain_slot_num_armor)
+```
+
+以上で `dmax-mini-3.py` の実装は終了です。
+`dmax-mini-3.py` のファイル全体を以下に示します。
+
+```py:dmax-mini-3.py
+# dmax-mini-3.py: 制約条件(1)-(3) を実装
+from pyomo.environ import *
+
+# =============================================================================
+# step1. 入力データ読み込み: 装備データの２次元配列作成、配列のインデックス作成
+# =============================================================================
+
+# 全ての装備データ (防具、護石、装飾品)
+equip_all = [
+    {"type": "head",  "name": "レダゼルトヘルムγ",   "deffence": 68, "slots": [3, 0, 0], "skills": {"煌雷竜の力": 1, "ヌシの魂": 1, "弱点特効": 1, "渾身": 1, "スタミナ急速回復": 1}},
+    {"type": "torso", "name": "レダゼルトメイルγ",   "deffence": 68, "slots": [1, 0, 0], "skills": {"煌雷竜の力": 1, "ヌシの魂": 1, "力の解放": 3}},
+    {"type": "arms",  "name": "レダゼルトアームγ",   "deffence": 68, "slots": [3, 3, 0], "skills": {"煌雷竜の力": 1, "ヌシの魂": 1, "回避距離ＵＰ": 2}},
+    {"type": "waist", "name": "レダゼルトコイルγ",   "deffence": 68, "slots": [0, 0, 0], "skills": {"煌雷竜の力": 1, "ヌシの魂": 1, "力の解放": 2, "渾身": 2}},
+    {"type": "legs",  "name": "レダゼルトグリーヴγ", "deffence": 68, "slots": [3, 0, 0], "skills": {"煌雷竜の力": 1, "ヌシの魂": 1, "スタミナ急速回復": 2, "気絶耐性": 3}},
+
+    {"type": "head",  "name": "ラギアヘルムα",       "deffence": 64, "slots": [2, 1, 0], "skills": {"海竜の渦雷": 1, "渾身": 2, "力の解放": 1, "革細工の柔性": 1}},
+    {"type": "torso", "name": "ラギアメイルα",       "deffence": 64, "slots": [2, 1, 0], "skills": {"海竜の渦雷": 1, "雷耐性": 2,  "弱点特効": 1, "スタミナ急速回復": 1, "革細工の柔性": 1}},
+    {"type": "arms",  "name": "ラギアアームα",       "deffence": 64, "slots": [2, 0, 0], "skills": {"海竜の渦雷": 1, "スタミナ急速回復": 2, "弱点特効": 1, "水場・油泥適応": 1, "革細工の柔性": 1}},
+    {"type": "waist", "name": "ラギアコイルα",       "deffence": 64, "slots": [2, 1, 1], "skills": {"海竜の渦雷": 1, "弱点特効": 1, "渾身": 1, "水場・油泥適応": 1, "革細工の柔性": 1}},
+    {"type": "legs",  "name": "ラギアグリーヴα",     "deffence": 64, "slots": [0, 0, 0], "skills": {"海竜の渦雷": 1, "弱点特効": 2, "力の解放": 1, "雷耐性": 1, "革細工の柔性": 1}},
+
+    {"type": "head",  "name": "レギオスヘルムα",     "deffence": 64, "slots": [3, 0, 0], "skills": {"千刃竜の闘志": 1, "巧撃": 1, "逆襲": 1, "裂傷耐性": 1, "鱗張りの技法": 1}},
+    {"type": "torso", "name": "レギオスメイルα",     "deffence": 64, "slots": [1, 0, 0], "skills": {"千刃竜の闘志": 1, "回避性能": 2, "挑戦者": 1, "逆襲": 1, "鱗張りの技法": 1}},
+    {"type": "arms",  "name": "レギオスアームα",     "deffence": 64, "slots": [2, 0, 0], "skills": {"千刃竜の闘志": 1, "巧撃": 2, "回避距離ＵＰ": 1, "鱗張りの技法": 1}},
+    {"type": "waist", "name": "レギオスコイルα",     "deffence": 64, "slots": [2, 0, 0], "skills": {"千刃竜の闘志": 1, "回避性能": 2, "挑戦者": 1, "裂傷耐性": 1, "鱗張りの技法": 1}},
+    {"type": "legs",  "name": "レギオスグリーヴα",   "deffence": 64, "slots": [0, 0, 0], "skills": {"千刃竜の闘志": 1, "巧撃": 2, "挑戦者": 1, "裂傷耐性": 1, "鱗張りの技法": 1}},
+
+    {"type": "charm", "name": "挑戦の護石Ⅱ", "slots": [0,0,0], "skills": {"挑戦者": 2}},
+    {"type": "charm", "name": "反攻の護石Ⅲ", "slots": [0,0,0], "skills": {"巧撃": 3}},
+
+    {"type": "decoArmor", "name": "反攻珠【３】", "size": 3, "skills": {"巧撃": 1}},
+    {"type": "decoArmor", "name": "逆襲珠【２】", "size": 2, "skills": {"逆襲": 1}},
+    {"type": "decoArmor", "name": "痛撃珠【３】", "size": 3, "skills": {"弱点特効": 1}},
+    {"type": "decoArmor", "name": "渾身珠【２】", "size": 2, "skills": {"渾身": 1}},
+    {"type": "decoArmor", "name": "体術珠【１】", "size": 1, "skills": {"体術": 1}},
+    {"type": "decoArmor", "name": "早気珠【２】", "size": 2, "skills": {"スタミナ急速回復": 1}},
+    {"type": "decoArmor", "name": "挑戦珠【３】", "size": 3, "skills": {"挑戦者": 1}},
+    {"type": "decoArmor", "name": "全開珠【３】", "size": 3, "skills": {"力の解放": 1}},
+]
+
+# 装備の名前集合 (2次元配列 p(i, j) の i の集合)
+equip_names = set()
+
+# 1つしか装備できない装備タイプの集合
+single_equip_type_set = {'head', 'torso', 'arms', 'waist', 'legs', 'charm'}
+
+# 装飾品スロットの属性
+remain_slot_set = {'Lv123RemainSlotNum', 'Lv23RemainSlotNum', 'Lv3RemainSlotNum'}
+
+# 装備の全属性の集合 (2次元配列 p(i, j) の j の集合)
+attribute_set = set()
+attribute_set = attribute_set | single_equip_type_set | {'deffence'} | {'decoArmor'} | remain_slot_set
+
+# 存在するスキルの集合 (後ほど 制約条件(4) の実装で利用)
+skill_set = set()
+
+for equip in equip_all:
+    # 装備名の集合に追加
+    equip_names.add(equip['name'])
+
+    # 属性の集合に追加
+    for skill in equip['skills']:
+        attribute_set.add(skill)
+        skill_set.add(skill)
+
+# 装備データの2次元配列を作成 ( p(i, j) の定義に利用 )
+eqinfo_matrix = {}
+for equip in equip_all:
+    # 装備タイプの属性データを追加
+    # 例: eqinfo_matrix['レダゼルトヘルムγ', 'head'] = 1
+    eqinfo_matrix[equip['name'], equip['type']] = 1
+
+    # 装備についているスキルの属性データを追加
+    # 例: eqinfomatrix['反攻の護石Ⅲ', '巧撃'] = 3
+    for skill in equip['skills']:
+        eqinfo_matrix[equip['name'], skill] = equip['skills'][skill]
+
+    # 装備の防御力を追加
+    eqinfo_matrix[equip['name'], 'deffence'] = equip['deffence'] if 'deffence' in equip else 0
+
+    # 装飾品の残りスロット属性を追加
+    if equip['type'] == 'decoArmor':
+        eqinfo_matrix[equip['name'], 'Lv123RemainSlotNum'] =  -1 if equip['size'] >= 1 else 0
+        eqinfo_matrix[equip['name'], 'Lv23RemainSlotNum']  =  -1 if equip['size'] >= 2 else 0
+        eqinfo_matrix[equip['name'], 'Lv3RemainSlotNum']   =  -1 if equip['size'] >= 3 else 0
+
+    # 装備の残りスロット属性を追加
+    if equip['type'] in single_equip_type_set:
+        eqinfo_matrix[equip['name'], 'Lv123RemainSlotNum'] = len(list(filter(lambda n: n >= 1, equip['slots'])))
+        eqinfo_matrix[equip['name'], 'Lv23RemainSlotNum']  = len(list(filter(lambda n: n >= 2, equip['slots'])))
+        eqinfo_matrix[equip['name'], 'Lv3RemainSlotNum']   = len(list(filter(lambda n: n >= 3, equip['slots'])))
+
+# ユーザが指定する必須スキルレベルのデータ
+required_skills = {
+    "巧撃": 5,
+    "挑戦者": 0,
+    "逆襲": 3,
+    "弱点特効": 5,
+    "渾身": 0,
+    "力の解放": 0,
+    "煌雷竜の力": 0,
+    "ヌシの魂": 0,
+    "海竜の渦雷": 0,
+    "千刃竜の闘志": 0,
+    "スタミナ急速回復": 3,
+    "体術": 4,
+    "回避距離ＵＰ": 0,
+    "気絶耐性": 0,
+    "革細工の柔性": 0,
+    "雷耐性": 0,
+    "水場・油泥適応": 0,
+    "裂傷耐性": 0,
+    "鱗張りの技法": 0,
+    "回避性能": 0,
+}
+
+
+# =============================================================================
+# step2. モデルの定義: パラメータ、変数、制約条件、目的関数の追加
+# =============================================================================
+
+# モデル定義: 空のモデルを作成
+mdl = ConcreteModel(name="dmax model", doc="model for solving damage optimization problem")
+
+# パラメータ定義: 装備データの2次元配列パラメータ
+mdl.p = Param(equip_names, attribute_set, default=0, initialize=eqinfo_matrix, within=Integers)
+
+# 変数定義: 各装備を何個使うかを表す変数
+mdl.q = Var(equip_names, within=NonNegativeIntegers, initialize=0)
+
+# 制約条件(1): 各部位で使用できる装備の数は 1 以下
+def const_total_equipment_type(mdl, eqtype):
+    return sum(mdl.q[eqname]*mdl.p[eqname,eqtype] for eqname in equip_names) <= 1
+
+mdl.const_total_equipment_type = Constraint(single_equip_type_set, rule=const_total_equipment_type)
+
+# パラメータ定義: ユーザが指定した必須スキルレベル
+mdl.r = Param(required_skills.keys(), default=0, initialize=required_skills, within=Integers)
+
+# 制約条件(2): ユーザが指定したスキルレベルの条件を満たす
+def const_skill_point(mdl, skill):
+    return sum(mdl.q[eqname]*mdl.p[eqname,skill] for eqname in equip_names) >= mdl.r[skill]
+
+mdl.const_skill_point = Constraint(required_skills.keys(), rule=const_skill_point)
+
+# 制約条件(3): 装飾品はスロットレベル以上の大きさのスロットにしか装着できない
+def const_remain_slot_num_armor(mdl, slotlevel):
+    return sum(mdl.q[eqname]*mdl.p[eqname,slotlevel] for eqname in equip_names) >= 0
+
+mdl.const_remain_slot_num_armor = Constraint(remain_slot_set, rule=const_remain_slot_num_armor)
+
+# 目的関数: 防御力の合計を最大化
+def objective(mdl):
+    return sum(mdl.q[eqname] * mdl.p[eqname, 'deffence'] for eqname in equip_names)
+
+mdl.OBJ = Objective(rule=objective, sense=maximize)
+
+
+# =============================================================================
+# step3. モデルの出力
+# =============================================================================
+
+# モデルの詳細を表示
+print(mdl.pprint())
+
+# 問題ファイルを出力
+import os
+output_filename = f"{os.path.splitext(os.path.basename(__file__))[0]}-problem.nl"
+mdl.write(output_filename, format="nl", io_options={'symbolic_solver_labels': True})
+```
+
+実行結果
 
 
 
