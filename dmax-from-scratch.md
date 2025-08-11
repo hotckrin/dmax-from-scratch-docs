@@ -502,102 +502,356 @@ Python や Pyomo ライブラリは基本的にどのOSでも問題なく動く�
 この記事では Windosw11 の WSL2 環境で実行環境を構築していきます。
 その他のOSの方は、上記の表の必須の項目を準備してください。(ChatGPT, Gemini, Claude などに聞けば教えてくれると思います。)
 
-wip: 環境構築したときのメモ
-claude との相談履歴: https://claude.ai/share/a050b41a-1a56-4d99-bee7-7fa6f8ec6938
-(まっさらな ubuntu 環境を wsl 上に新規構築する手順が書いてある)
+#### WSL2の有効化
 
-最終的な実行方法
+::: message
+既にWSL2のUbuntu22.04環境がある方はスキップしてください。
+Ubuntuのバージョンはズレていても多分動きますが、動作に問題があればUbuntu22.04をインストールして下さい。
+:::
+
+本記事の環境構築手順は 2025-08-11 時点のものです。
+最新のインストール手順が必要な場合は以下のWSL公式ドキュメント等を参照して下さい。
+https://learn.microsoft.com/ja-jp/windows/wsl/install
+
+**前提条件**
+
+WSLコマンドを使用するには、以下のいずれかのバージョンを実行している必要があります：
+
+- Windows 10 バージョン2004以降（ビルド19041以降）
+- Windows 11（全バージョン）
+
+それより前のバージョンの場合は、手動インストールが必要になります。
+[WSL公式ドキュメント](https://learn.microsoft.com/ja-jp/windows/wsl/install) 等を参照して下さい。
+
+**Ubuntu 22.04を指定してWSLをインストール**
+PowerShell またはコマンドプロンプトを管理者権限で開きます。
+
+- スタートメニューで `PowerShell` と検索
+- 右クリックして `管理者として実行` を選択
+
+以下のコマンドを実行し、インストール可能なディストリ一覧に `Ubuntu-22.04` が存在することを確認します。
+
 ```sh
-# 対話シェル
-$ /home/hoge/work/scipoptsuite-8.0.3/build_default/bin/scip
-SCIP> read /home/hoge/work/dmax-from-scratch/dmax-practice/linear-problem.nl
-SCIP> optimize
-SCIP> display solution
+wsl --list --online
+```
 
-# ワンライナー
-$ /home/hoge/work/scipoptsuite-8.0.3/build_default/bin/scip -f linear-problem.nl
+以下のコマンドを実行します。このコマンドにより、WSLを実行するために必要な機能が有効になり、Ubuntu 22.04 LTSディストリビューションがインストールされます。
+
+```sh
+wsl --install -d Ubuntu-22.04
+```
+
+コマンド実行後、再起動を求められるのでパソコンを再起動してください。
+
+#### WSL2 に Ubuntu22.04.1 LTS をインストール
+
+PowerShell を通常の権限で起動します。
+
+- スタートメニューで `PowerShell` と検索
+- 左クリックして実行
+
+PowerShell 上で以下のコマンドを実行して、正常にインストールされたことを確認します。
+
+```sh
+wsl -l -v
+```
+
+出力例は以下のようになります。
+`VERSION` 列に `2` と表示されていればWSL2環境で実行されていることが確認できます。
+
+```sh
+PS C:\Users\hoge> wsl -l -v
+  NAME              STATE           VERSION
+  * Ubuntu-22.04    Running         2
+```
+
+PowerShell 上で以下のコマンドを実行します。
+このコマンドにより WSL2 環境で Ubuntu-22.04 が起動します。
+
+```sh
+wsl -d Ubuntu-22.04
+```
+
+初回起動時には以下のようにユーザ名とパスワードの登録を求められます。
+本記事とパスを揃えたい場合、ユーザ名は `dmax-scratch` を指定して下さい。
+パスワードは sudo 権限でコマンドを実行する際に必要なので忘れないで下さい。
+
+```sh
+Ubuntu 22.04 LTS を起動しています...
+Installing, this may take a few minutes...
+Please create a default UNIX user account. The username does not need to match your Windows username.
+For more information visit: https://aka.ms/wslusers
+Enter new UNIX username: dmax-scratch
+New password:
+Retype new password:
+passwd: password updated successfully
+Installation successful!
+```
+
+Ubuntu22.04 への接続を終了するためには以下のコマンドを実行します。
+
+```sh
+exit
+```
+
+作成したユーザ `dmax-scratch` を利用して Ubuntu22.04 へ再接続するためには PowerShell 上で以下のコマンドを実行します。
+
+```sh
+wsl -d Ubuntu-22.04 -u dmax-scratch
+```
+
+#### サンプルコードの環境構築
+
+サンプルコードの実行環境を構築していきます。
+ここからは Ubuntu22.04 環境にログインしていることを前提とします。
+
+以下のコマンドを実行し、ユーザや作業ディレクトリを確認します。
+
+```sh
+# 現在のユーザを確認
+whoami
+
+# ホームディレクトリへ移動
+cd ~
+
+# 現在の作業ディレクトリを確認
+pwd
+```
+
+実行すると以下のようになります。
+
+```sh
+$ whoami
+dmax-scratch
+$ cd ~
+
+$ pwd
+/home/dmax-scratch
+```
+
+以下のコマンドを実行して、Python のバージョン管理ツール [uv](https://github.com/astral-sh/uv) をインストールします。
+
+```sh
+# uv のインストール
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# uv へのパス設定の反映
+source $HOME/.local/bin/env
+
+# uv が利用可能になったか確認するため uv のバージョンを出力
+uv --version
+```
+
+以下のように uv のバージョン情報が出力されればOKです。
+
+```sh
+$ uv --version
+uv 0.8.8
+```
+
+次に、以下のコマンドを実行します。
+このコマンドにより、サンプルコードのをローカル環境にコピーし、uv により実行環境をセットアップします。
+
+```sh
+# サンプルコードをダウンロード
+git clone https://github.com/hotckrin/dmax-from-scratch-sample-code.git
+
+# サンプルコードのディレクトリへ移動
+cd dmax-from-scratch-sample-code
+
+# uvで環境を自動構築
+uv sync
+```
+
+以下のように `Python 3.8` と `pyomo 6.4.4` がインストールされたことが確認できればOKです。
+
+```sh
+$ uv sync
+Using CPython 3.8.20
+Creating virtual environment at: .venv
+Resolved 3 packages in 3ms
+Prepared 2 packages in 3.15s
+Installed 2 packages in 21ms
+ + ply==3.11
+ + pyomo==6.4.4
+```
+
+次は動作確認をしていきます。
+
+まず、 uv 経由で Python 3.8 の対話モードを起動してみます。
+以下のように `uv run python` コマンドを実行し、Python 3.8 の対話モードが起動すればOKです。
+
+```sh
+$ uv run python
+Python 3.8.16 (default, Mar 29 2023, 09:41:05)
+[GCC 11.3.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>>
 
 ```
 
-scip 環境構築
-```sh
-# コンパイル済み scip をインストールするためのスクリプトをダウンロードする
-$ wget https://www.scipopt.org/download/release/SCIPOptSuite-8.0.3-Linux-ubuntu.sh
+次に、サンプルコード `dmax-mini-2.py` の動作確認をします。
+以下のように `uv run dmax-mini-2.py` コマンドを実行し、問題ファイルが出力されればOKです。
+問題ファイルの存在は `ls -lh | grep 2-problem` のようにして確認できます。
 
-# ダウンロードしたスクリプトを実行して、コンパイル済み scip をインストールする
-$ sh SCIPOptSuite-8.0.3-Linux-ubuntu.sh
+```sh
+# サンプルコードを実行して問題ファイルを出力
+$ uv run dmax-mini-2.py
+model for solving damage optimization problem
+
+    5 Set Declarations
+        const_total_equipment_type_index : Size=1, Index=None, Ordered=False
+            Key  : Dimen : Domain : Size : Members
+            None :     1 :    Any :    6 : {'arms', 'charm', 'head', 'legs', 'torso', 'waist'}
+        p_index : Size=1, Index=None, Ordered=False
+            Key  : Dimen : Domain              : Size : Members
+            None :     2 : p_index_0*p_index_1 :  442 : {('ラギアアームα', 'arms'), ('ラギアアームα', 'charm'),
+...省略
+
+# 問題ファイルの存在を確認
+$ ls -lh | grep 2-problem
+-rw-r--r-- 1 dmax-scratch dmax-scratch  458 Aug 11 14:42 dmax-mini-2-problem.col
+-rw-r--r-- 1 dmax-scratch dmax-scratch 2.6K Aug 11 14:42 dmax-mini-2-problem.nl
+-rw-r--r-- 1 dmax-scratch dmax-scratch  840 Aug 11 14:42 dmax-mini-2-problem.row
+```
+
+#### SCIPソルバーの環境構築
+
+最適化ソルバー SCIP の実行環境を構築していきます。
+
+以下のSCIP公式ページにアクセスし、Download セクションを表示して下さい。
+https://www.scipopt.org/index.php#download
+
+ドロップダウンメニューから Version `8.0.3` と OS `Linux` を選択して下さい。
+
+![](images/scip1.png)
+
+本記事ではソースコードからのビルドではなく、コンパイル済みパッケージを利用します。
+
+Precompiled Packages のセクションに `SCIPOptSuite-8.0.3-Linux-ubuntu.sh` のリンクがあることを確認します。
+`SCIPOptSuite-8.0.3-Linux-ubuntu.sh` のリンクを右クリックし「リンクのアドレスをコピー」を選択します。
+
+![](images/scip2.png)
+
+以下のコマンドを実行して、SCIP 8.0.3 のインストールスクリプトをダウンロードします。
+
+```sh
+# ホームディレクトリに移動
+cd ~
+
+# インストールスクリプトをダウンロード
+wget <ここにコピーしたリンクを貼り付け>
+
+# スクリプトがダウンロードできたか確認
+ls -lh | grep SCIP
+```
+
+以下のように `SCIPOptSuite-8.0.3-Linux-ubuntu.sh` が確認できればOKです。
+```sh
+$ ls -lh | grep SCIP
+-rw-r--r-- 1 dmax-scratch dmax-scratch  26M Dec 14  2022 SCIPOptSuite-8.0.3-Linux-ubuntu.sh
+```
+
+次に、SCIPの実行に必要な依存関係のパッケージをインストールします。
+
+公式ドキュメント中の以下の記述から必要な依存パッケージを判断します。
+> [SCIPOptSuite-8.0.3-Linux-ubuntu.sh](https://www.scipopt.org/download/release/SCIPOptSuite-8.0.3-Linux-ubuntu.sh)
+> Linux self-extracting archive (built on ubuntu 20.04, requires gcc g++ gfortran liblapack3 libtbb2 libcliquer1 libopenblas-dev libgsl23 patchelf)
+
+```sh
+# パッケージリストを更新
+# (sudo 実行時にパスワードを要求された場合はユーザ作成時のパスワードを入力)
+sudo apt update
+
+# SCIP8.0.3の実行に必要な依存関係をインストール
+# (Ubuntu22.04 の標準環境では libgsl23 を見つけられないため libgsl27 を指定)
+sudo apt install -y gcc g++ gfortran liblapack3 libtbb2 libcliquer1 libopenblas-dev libgsl27 patchelf
+
+# SCIP対話モードを便利にするためのライブラリをインストール
+```
+
+必要な依存パッケージがインストールできたので、次は先ほど `wget` でダウンロードしてきたSCIPのインストールスクリプトを実行します。
+
+以下のコマンドを実行し、SCIPのインストールスクリプトを実行します。
+
+```sh
+sh SCIPOptSuite-8.0.3-Linux-ubuntu.sh
+```
+
+途中で聞かれる2つの質問には `y` と `Y` を入力します。
+(Do you accept the license? の質問については、公式ドキュメントからライセンスを確認しておいて下さい)
+
+実行すると以下のようになります。`Unpacking finished successfully` と表示されていればOKです。
+
+```sh
+dmax-scratch@DESKTOP-BP23A1J:~$ sh SCIPOptSuite-8.0.3-Linux-ubuntu.sh
+SCIPOptSuite Installer Version: 8.0.3, Copyright (c) Zuse Institute Berlin
+This is a self-extracting archive.
+The archive will be extracted to: /home/dmax-scratch
+
+If you want to stop extracting, please press <ctrl-C>.
+Copyright 2002-2022 Zuse Institute Berlin
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+
 Do you accept the license? [yn]:
 y
-
+By default the SCIPOptSuite will be installed in:
+  "/home/dmax-scratch/SCIPOptSuite-8.0.3-Linux"
+Do you want to include the subdirectory SCIPOptSuite-8.0.3-Linux?
 Saying no will install in: "/home/dmax-scratch" [Yn]:
 Y
 
+Using target directory: /home/dmax-scratch/SCIPOptSuite-8.0.3-Linux
+Extracting, please wait...
 
-# scip の依存関係インストール (libgsl23 は入らなかったので libgsl27 に変更)
-$ sudo apt install -y gcc g++ gfortran liblapack3 libtbb2 libcliquer1 libopenblas-dev patchelf libgsl-dev libgsl27
+Relinking libraries
+Unpacking finished successfully
+```
 
-# scip 対話シェルでコマンドの補完や履歴検索を有効化するためにインストール
-$ sudo apt install rlwrap
+SCIPソルバーのインストール場所を確認し、起動テストし、PATHに追加します。
 
-# scip 動作確認
+```sh
+# 改めてホームディレクトリにいることを確認
+cd ~
 
-# 対話型で起動して実行
-$ /home/dmax-scratch/SCIPOptSuite-8.0.3-Linux/bin/scip
+# SCIPソルバーのインストール場所を確認
+ls -lh SCIPOptSuite-8.0.3-Linux/bin/scip
 
-# readline による補完・履歴検索を有効化して実行
-$ rlwrap -f . -c /home/dmax-scratch/SCIPOptSuite-8.0.3-Linux/bin/scip
+# SCIPソルバーのバイナリを実行し、対話モードが起動することを確認
+SCIPOptSuite-8.0.3-Linux/bin/scip
 
-# read コマンドで問題ファイルを読み込みます
-# read <問題ファイルへのパス>
-SCIP> read /home/dmax-scratch/dmax-practice-problem.nl
+# quit または ctrl-D によりSCIPの対話モードを終了
+quit
 
-read problem </home/dmax-scratch/dmax-practice-problem.nl>
-============
+# SCIPソルバーのインストール場所の絶対パスを確認
+realpath SCIPOptSuite-8.0.3-Linux/bin/
 
-original problem has 3 variables (0 bin, 2 int, 0 impl, 1 cont) and 2 constraints
+# ~/.bashrc にPATH設定を追記
+echo "export PATH=\"$(realpath SCIPOptSuite-8.0.3-Linux/bin/):\$PATH\"" >> ~/.bashrc
 
-# optimize コマンドで読み込んだ問題を最適化します
-SCIP> optimize
+# ~/.bashrc を反映してPATHを読み込む
+source ~/.bashrc
 
-solution violates original bounds of variable <objconstant> [50,50] solution value <0>
-all 1 solutions given by solution candidate storage are infeasible
+# scip コマンドのみで SCIP 対話モードが起動するようになったことを確認
+scip
+```
 
-feasible solution found by trivial heuristic after 0.0 seconds, objective value 5.000000e+01
-presolving:
-(round 1, fast)       1 del vars, 0 del conss, 0 add conss, 3 chg bounds, 0 chg sides, 0 chg coeffs, 0 upgd conss, 0 impls, 0 clqs
-(round 2, fast)       1 del vars, 0 del conss, 0 add conss, 3 chg bounds, 1 chg sides, 1 chg coeffs, 0 upgd conss, 0 impls, 0 clqs
-(round 3, fast)       1 del vars, 0 del conss, 0 add conss, 4 chg bounds, 1 chg sides, 1 chg coeffs, 0 upgd conss, 0 impls, 0 clqs
-(round 4, fast)       2 del vars, 0 del conss, 0 add conss, 4 chg bounds, 1 chg sides, 1 chg coeffs, 0 upgd conss, 1 impls, 0 clqs
-   (0.0s) running MILP presolver
-   (0.0s) MILP presolver (2 rounds): 0 aggregations, 2 fixings, 0 bound changes
-presolving (5 rounds: 5 fast, 1 medium, 1 exhaustive):
- 4 deleted vars, 2 deleted constraints, 0 added constraints, 4 tightened bounds, 0 added holes, 1 changed sides, 1 changed coefficients
- 1 implications, 0 cliques
-transformed 1/2 original solutions to the transformed problem space
-Presolving Time: 0.00
+最終的に以下のように `scip` コマンドのみで対話モードを起動できるようになればOKです。
 
-SCIP Status        : problem is solved [optimal solution found]
-Solving Time (sec) : 0.01
-Solving Nodes      : 0
-Primal Bound       : +1.90000000000000e+02 (2 solutions)
-Dual Bound         : +1.90000000000000e+02
-Gap                : 0.00 %
-
-# 最適解を表示します
-SCIP> display solution
-
-objective value:                                  190
-Ax_use                                              2   (obj:50)
-Ay_use                                              1   (obj:40)
-objconstant                                        50   (obj:1)
-
-# ワンライナーで実行
-# 上記の対話型で実行した内容を一発で実行できます
-$ /home/dmax-scratch/SCIPOptSuite-8.0.3-Linux/bin/scip -f /home/dmax-scratch/dmax-practice-problem.nl
-
-
-# version が 8.0.3 か確認
-$ /home/dmax-scratch/SCIPOptSuite-8.0.3-Linux/bin/scip --version
+```sh
+$ scip
 SCIP version 8.0.3 [precision: 8 byte] [memory: block] [mode: optimized] [LP solver: Soplex 6.0.3] [GitHash: 62fab8a2e3]
 Copyright (C) 2002-2022 Konrad-Zuse-Zentrum fuer Informationstechnik Berlin (ZIB)
 
@@ -612,37 +866,149 @@ External libraries:
   bliss 0.77           Computing Graph Automorphism Groups by T. Junttila and P. Kaski (www.tcs.hut.fi/Software/bliss/)
   Ipopt 3.13.2         Interior Point Optimizer developed by A. Waechter et.al. (github.com/coin-or/Ipopt)
 
-Compiler: gcc 9.4.0
+user parameter file <scip.set> not found - using default parameters
 
-Build options:
- ARCH=x86_64
- OSTYPE=Linux-4.19.0-21-amd64
- COMP=GNU 9.4.0
- BUILD=Release
- DEBUGSOL=OFF
- EXPRINT=cppad
- SYM=bliss
- GMP=ON
- IPOPT=ON
- WORHP=OFF
- LPS=spx
- LPSCHECK=OFF
- NOBLKBUFMEM=OFF
- NOBLKMEM=OFF
- NOBUFMEM=OFF
- THREADSAFE=ON
- READLINE=off
- SANITIZE_ADDRESS=OFF
- SANITIZE_MEMORY=OFF
- SANITIZE_UNDEFINED=OFF
- SANITIZE_THREAD=OFF
- SHARED=ON
- VERSION=8.0.3.0
- API_VERSION=104
- ZIMPL=ON
- ZLIB=ON
+SCIP>
 
 ```
+
+次に、SCIP対話モードを便利にするために `rlwrap` をインストールします。
+`rlwrap` を利用するとSCIP対話モードにおいて、コマンド履歴を遡ったり、ファイルの候補を補完したりできます。
+
+```sh
+# rlwrap をインストール
+sudo apt install -y rlwrap
+
+# rlwrap 経由で scip を起動できることを確認
+rlwrap scip
+
+# rscip というエイリアスを設定して、rlwrap 経由で scip を起動できるようにする
+echo "alias rscip=\"rlwrap -f . -c -b '(){}[],=&^\$#@\\\";|\\\\' scip\"" >> ~/.bashrc
+
+# 設定の反映
+source ~/.bashrc
+
+# rscip 一発で rlwrap 経由の scip 起動ができることを確認
+rscip
+```
+
+以上でSCIP対話モードの準備ができました。
+
+最後に、最適化問題ファイルを読み込んで最適化してみます。
+
+以下のコマンドを実行し、SCIP対話モードで最適化できることを確認します。
+
+```sh
+# scip 対話モードを起動
+$ rscip
+
+# read コマンドで問題ファイルを読み込み
+SCIP> read dmax-mini-2-problem.nl
+
+# optimize コマンドで最適化
+SCIP> optimize
+
+# display solution コマンドで最適化の結果を表示
+SCIP> display solution
+```
+
+実行すると以下のようになります。
+
+> `q[反攻の護石Ⅲ]                               1  (obj:0)`
+のような結果装備の一覧が表示されればOKです。
+
+```sh
+$ rscip
+SCIP version 8.0.3 [precision: 8 byte] [memory: block] [mode: optimized] [LP solver: Soplex 6.0.3] [GitHash: 62fab8a2e3]
+Copyright (C) 2002-2022 Konrad-Zuse-Zentrum fuer Informationstechnik Berlin (ZIB)
+
+External libraries:
+  Soplex 6.0.3         Linear Programming Solver developed at Zuse Institute Berlin (soplex.zib.de) [GitHash: f900e3d0]
+  CppAD 20180000.0     Algorithmic Differentiation of C++ algorithms developed by B. Bell (github.com/coin-or/CppAD)
+  ZLIB 1.2.11          General purpose compression library by J. Gailly and M. Adler (zlib.net)
+  GMP 6.2.1            GNU Multiple Precision Arithmetic Library developed by T. Granlund (gmplib.org)
+  ZIMPL 3.5.3          Zuse Institute Mathematical Programming Language developed by T. Koch (zimpl.zib.de)
+  AMPL/MP 4e2d45c4     AMPL .nl file reader library (github.com/ampl/mp)
+  PaPILO 2.1.2         parallel presolve for integer and linear optimization (github.com/scipopt/papilo) [GitHash: 2fe2543]
+  bliss 0.77           Computing Graph Automorphism Groups by T. Junttila and P. Kaski (www.tcs.hut.fi/Software/bliss/)
+  Ipopt 3.13.2         Interior Point Optimizer developed by A. Waechter et.al. (github.com/coin-or/Ipopt)
+
+user parameter file <scip.set> not found - using default parameters
+
+read dmax-mini-2-problem.nl
+
+read problem <dmax-mini-2-problem.nl>
+============
+
+original problem has 17 variables (0 bin, 17 int, 0 impl, 0 cont) and 25 constraints
+optimize
+
+  [linear] <const_skill_point[逆襲]>: <q[レギオスヘルムα]>[I] (+0) +<q[レギオスメイルα]>[I] (+0) >= 2;
+;
+violation: left hand side is violated by 2
+all 1 solutions given by solution candidate storage are infeasible
+
+presolving:
+(round 1, fast)       7 del vars, 20 del conss, 0 add conss, 19 chg bounds, 0 chg sides, 0 chg coeffs, 0 upgd conss, 0 impls, 3 clqs
+(round 2, fast)       12 del vars, 22 del conss, 0 add conss, 19 chg bounds, 0 chg sides, 0 chg coeffs, 0 upgd conss, 0 impls, 3 clqs
+   (0.0s) running MILP presolver
+   (0.0s) MILP presolver (2 rounds): 0 aggregations, 9 fixings, 0 bound changes
+presolving (3 rounds: 3 fast, 1 medium, 1 exhaustive):
+ 21 deleted vars, 25 deleted constraints, 0 added constraints, 19 tightened bounds, 0 added holes, 0 changed sides, 0 changed coefficients
+ 0 implications, 0 cliques
+transformed 1/1 original solutions to the transformed problem space
+Presolving Time: 0.00
+
+SCIP Status        : problem is solved [optimal solution found]
+Solving Time (sec) : 0.00
+Solving Nodes      : 0
+Primal Bound       : +3.32000000000000e+02 (1 solutions)
+Dual Bound         : +3.32000000000000e+02
+Gap                : 0.00 %
+
+display solution
+
+objective value:                                  332
+q[レギオスヘルムα]                          1   (obj:64)
+q[レギオスメイルα]                          1   (obj:64)
+q[レダゼルトアームγ]                       1    (obj:68)
+q[レダゼルトグリーヴγ]                    1     (obj:68)
+q[レダゼルトコイルγ]                       1    (obj:68)
+q[反攻の護石Ⅲ]                               1  (obj:0)
+
+SCIP>
+```
+
+おまけとして、rlwrap により Emacs ライクな Readline キーバインドが利用できることを確認します。
+これにより繰り返し操作や修正が楽になります。
+
+```sh
+
+# ctrl-P で1つ過去のコマンドを呼び出せることを確認
+# ctrl-N で元に戻せることを確認
+SCIP> # ここで ctrl-P or ctrl-N
+
+# ctrl-R 入力後に read と入力すると直近の read コマンドを呼び出せることを確認
+SCIP> # ここで ctrl-R → read → ctrl-E で確定
+
+# TAB を2回入力すると候補ファイル名一覧が表示されることを確認
+SCIP> read # ここで TAB x2
+
+# ファイル名を途中まで入力した後 TAB を2回入力すると絞り込まれた候補ファイル一覧が表示されることを確認
+SCIP> read dmax-mini-2-p # ここで TAB x2
+```
+
+対話モードではなく、SCIP ソルバーの起動時に問題ファイルを指定する方法もあります。
+こちらを利用すると上記の対話モードで実行した操作を一発で実行できます。その代わり出力が多くて読みづらいと思います。
+
+```sh
+# ワンライナーで実行
+$ scip -f dmax-mini-2-problem.nl
+```
+
+以上で、本記事で必要な全ての環境構築が完了しました。お疲れ様でした。
+
+## 実装編
 
 それでは pyomo によるモデルを出力するためのコードを書いていきましょう。
 
