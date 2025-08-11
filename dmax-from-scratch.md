@@ -497,15 +497,14 @@ Python や Pyomo ライブラリは基本的にどのOSでも問題なく動く�
 というわけでバージョン管理ツール `uv` の利用を推奨します。
 `uv` を利用すると `uv sync` というコマンド一発で仮想環境を構築し、 Python インタプリタと Pyomo 等のライブラリのバージョンを揃えることができます。
 
-
-
 この記事では Windosw11 の WSL2 環境で実行環境を構築していきます。
 その他のOSの方は、上記の表の必須の項目を準備してください。(ChatGPT, Gemini, Claude などに聞けば教えてくれると思います。)
+uv は必須ではないですがオススメです。
 
 #### WSL2の有効化
 
 ::: message
-既にWSL2のUbuntu22.04環境がある方はスキップしてください。
+既にWSL2のUbuntu22.04環境がある方はスキップして、[サンプルコードの環境構築](#サンプルコードの環境構築) から実行して下さい。
 Ubuntuのバージョンはズレていても多分動きますが、動作に問題があればUbuntu22.04をインストールして下さい。
 :::
 
@@ -748,6 +747,11 @@ ls -lh | grep SCIP
 
 以下のように `SCIPOptSuite-8.0.3-Linux-ubuntu.sh` が確認できればOKです。
 ```sh
+# wget のリンク例
+$ wget https://www.scipopt.org/download/release/SCIPOptSuite-8.0.3-Linux-ubuntu.sh
+...省略
+
+# インストールスクリプトを確認
 $ ls -lh | grep SCIP
 -rw-r--r-- 1 dmax-scratch dmax-scratch  26M Dec 14  2022 SCIPOptSuite-8.0.3-Linux-ubuntu.sh
 ```
@@ -766,8 +770,6 @@ sudo apt update
 # SCIP8.0.3の実行に必要な依存関係をインストール
 # (Ubuntu22.04 の標準環境では libgsl23 を見つけられないため libgsl27 を指定)
 sudo apt install -y gcc g++ gfortran liblapack3 libtbb2 libcliquer1 libopenblas-dev libgsl27 patchelf
-
-# SCIP対話モードを便利にするためのライブラリをインストール
 ```
 
 必要な依存パッケージがインストールできたので、次は先ほど `wget` でダウンロードしてきたSCIPのインストールスクリプトを実行します。
@@ -784,7 +786,7 @@ sh SCIPOptSuite-8.0.3-Linux-ubuntu.sh
 実行すると以下のようになります。`Unpacking finished successfully` と表示されていればOKです。
 
 ```sh
-dmax-scratch@DESKTOP-BP23A1J:~$ sh SCIPOptSuite-8.0.3-Linux-ubuntu.sh
+$ sh SCIPOptSuite-8.0.3-Linux-ubuntu.sh
 SCIPOptSuite Installer Version: 8.0.3, Copyright (c) Zuse Institute Berlin
 This is a self-extracting archive.
 The archive will be extracted to: /home/dmax-scratch
@@ -899,6 +901,9 @@ rscip
 以下のコマンドを実行し、SCIP対話モードで最適化できることを確認します。
 
 ```sh
+# 問題ファイルが存在するディレクトリに移動
+$ cd ~/dmax-from-scratch-sample-code/
+
 # scip 対話モードを起動
 $ rscip
 
@@ -913,9 +918,7 @@ SCIP> display solution
 ```
 
 実行すると以下のようになります。
-
-> `q[反攻の護石Ⅲ]                               1  (obj:0)`
-のような結果装備の一覧が表示されればOKです。
+`q[反攻の護石Ⅲ]    1  (obj:0)` のような結果装備の一覧が表示されればOKです。
 
 ```sh
 $ rscip
@@ -984,8 +987,8 @@ SCIP>
 
 ```sh
 
-# ctrl-P で1つ過去のコマンドを呼び出せることを確認
-# ctrl-N で元に戻せることを確認
+# ctrl-P を入力するたびに1つ過去のコマンドを呼び出せることを確認
+# ctrl-N を入力するたびに1つコマンドを戻せることを確認
 SCIP> # ここで ctrl-P or ctrl-N
 
 # ctrl-R 入力後に read と入力すると直近の read コマンドを呼び出せることを確認
@@ -1302,7 +1305,7 @@ TODO: `SCIP> display problem` を追加したい
 TODO: readline 対応
 
 ```sh
-dmax-scratch@DESKTOP-BP23A1J:~$ /home/dmax-scratch/SCIPOptSuite-8.0.3-Linux/bin/scip
+$ /home/dmax-scratch/SCIPOptSuite-8.0.3-Linux/bin/scip
 SCIP version 8.0.3 [precision: 8 byte] [memory: block] [mode: optimized] [LP solver: Soplex 6.0.3] [GitHash: 62fab8a2e3]
 Copyright (C) 2002-2022 Konrad-Zuse-Zentrum fuer Informationstechnik Berlin (ZIB)
 
