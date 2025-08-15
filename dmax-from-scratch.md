@@ -11,7 +11,7 @@
 失踪するまえに誰かにダメージ最大化シミュの自作文化を誰かに引き継いでほしいです。
 
 具体例とポンチ絵を駆使してできるだけ詳しく、発想から説明するように心がけます。
-これ読んで実装した読者が、サンプルコードをベースに別武器や次回作の最適化シミュを実装できるレベルを目指します。
+本記事を読んで実装した読者が、サンプルコードをベースに別武器や次回作の最適化シミュを実装できるような記事になることを目指します。
 
 ## 自動ダメージ最大化シミュレータとはなにか？
 
@@ -503,7 +503,7 @@ uv は必須ではないですがオススメです。
 
 #### WSL2の有効化
 
-::: message
+:::note info
 既にWSL2のUbuntu22.04環境がある方はスキップして、[サンプルコードの環境構築](#サンプルコードの環境構築) から実行して下さい。
 Ubuntuのバージョンはズレていても多分動きますが、動作に問題があればUbuntu22.04をインストールして下さい。
 :::
@@ -1020,11 +1020,10 @@ $ scip -f dmax-mini-2-problem.nl
 ```py
 from pyomo.environ import *
 
-if __name__ == '__main__':
-    # 線形計画問題を解くためのPyomoモデルを定義します
+# 線形計画問題を解くためのPyomoモデルを定義します
 
-    # モデル定義
-    mdl = ConcreteModel(name="dmax-practice", doc="dmax-practice: ゼロから作るモンハン最適化シミュレータ")
+# モデル定義
+mdl = ConcreteModel(name="dmax-practice", doc="dmax-practice: ゼロから作るモンハン最適化シミュレータ")
 ```
 
 pyomo の Model クラスには以下の2種類があります。
@@ -1051,18 +1050,17 @@ Model クラスのインスタンス `mdl` を作成できたので、以降は�
 ```py
 from pyomo.environ import *
 
-if __name__ == '__main__':
-    # 線形計画問題を解くためのPyomoモデルを定義します
+# 線形計画問題を解くためのPyomoモデルを定義します
 
-    # モデル定義
-    mdl = ConcreteModel(name="dmax-practice", doc="dmax-practice: ゼロから作るモンハン最適化シミュレータ")
+# モデル定義
+mdl = ConcreteModel(name="dmax-practice", doc="dmax-practice: ゼロから作るモンハン最適化シミュレータ")
 
-    # 変数定義
-    # X_use: 非負整数変数
-    mdl.X_use = Var(within=NonNegativeIntegers, initialize=0)
+# 変数定義
+# X_use: 非負整数変数
+mdl.X_use = Var(within=NonNegativeIntegers, initialize=0)
 
-    # Y_use: 非負整数変数
-    mdl.Y_use = Var(within=NonNegativeIntegers, initialize=0)
+# Y_use: 非負整数変数
+mdl.Y_use = Var(within=NonNegativeIntegers, initialize=0)
 ```
 
 pyomo の変数は `Var` クラスで定義します。
@@ -1118,26 +1116,25 @@ pyomo では変数のようなモデルを定義する要素を、動的属性�
 ```py
 from pyomo.environ import *
 
-if __name__ == '__main__':
-    # モデル定義
-    mdl = ConcreteModel(name="dmax-practice", doc="dmax-practice: ゼロから作るモンハン最適化シミュレータ")
+# モデル定義
+mdl = ConcreteModel(name="dmax-practice", doc="dmax-practice: ゼロから作るモンハン最適化シミュレータ")
 
-    # 変数定義
-    mdl.X_use = Var(within=NonNegativeIntegers, initialize=0)
-    mdl.Y_use = Var(within=NonNegativeIntegers, initialize=0)
+# 変数定義
+mdl.X_use = Var(within=NonNegativeIntegers, initialize=0)
+mdl.Y_use = Var(within=NonNegativeIntegers, initialize=0)
 
-    # 制約条件定義
-    # 制約1: 2 * X_use + 1 * Y_use >= 5
-    def constraint_1(mdl):
-        return 2 * mdl.X_use + 1 * mdl.Y_use >= 5
+# 制約条件定義
+# 制約1: 2 * X_use + 1 * Y_use >= 5
+def constraint_1(mdl):
+    return 2 * mdl.X_use + 1 * mdl.Y_use >= 5
 
-    mdl.const_1 = Constraint(rule=constraint_1)
+mdl.const_1 = Constraint(rule=constraint_1)
 
-    # 制約2: 1 * X_use + 2 * Y_use <= 4
-    def constraint_2(mdl):
-        return 1 * mdl.X_use + 2 * mdl.Y_use <= 4
+# 制約2: 1 * X_use + 2 * Y_use <= 4
+def constraint_2(mdl):
+    return 1 * mdl.X_use + 2 * mdl.Y_use <= 4
 
-    mdl.const_2 = Constraint(rule=constraint_2)
+mdl.const_2 = Constraint(rule=constraint_2)
 ```
 
 pyomo で制約条件を定義する際には `Constraint` クラスを利用します。`Constraint` クラスの引数 `rule` には制約条件の式を返す関数を指定します。
@@ -1146,15 +1143,25 @@ pyomo で制約条件を定義する際には `Constraint` クラスを利用し
 `rule` 引数に渡す関数の第1引数は常にモデルオブジェクトを受け取ります。そのため関数 `constrait_1` を定義する際には以下のように `mdl` と記述して、第1引数にモデルを受け取るように定義する必要があります。
 
 ```py
-    def constraint_1(mdl):
-        return 2 * mdl.X_use + 1 * mdl.Y_use >= 5
+def constraint_1(mdl):
+    return 2 * mdl.X_use + 1 * mdl.Y_use >= 5
 ```
 
 このようにして作成した制約条件を表す Constraint クラスのインスタンスを `mdl.const_1 = ` という形で、動的属性によりモデルに追加しています。
 
 ```py
-    mdl.const_1 = Constraint(rule=constraint_1)
+mdl.const_1 = Constraint(rule=constraint_1)
 ```
+
+:::note info
+`rule` 関数の戻り値としては基本的に制約式を返す必要があります。制約式は `<=`, `>=`, `==` を含む関係式により定義します。
+したがって、もし「防具の合計数が必ず1でなければならない」という制約がある場合は、以下のような `==` による制約式を定義することになるでしょう。
+
+```py
+def constraint_armor_equal(mdl):
+    return mdl.X_use + mdl.Y_use == 1
+```
+:::
 
 ここまでで、変数と制約条件をモデルに追加できました。最後に目的関数をモデルに追加します。
 
@@ -1167,30 +1174,29 @@ pyomo で制約条件を定義する際には `Constraint` クラスを利用し
 ```py
 from pyomo.environ import *
 
-if __name__ == '__main__':
-    # モデル定義
-    mdl = ConcreteModel(name="dmax-practice", doc="dmax-practice: ゼロから作るモンハン最適化シミュレータ")
+# モデル定義
+mdl = ConcreteModel(name="dmax-practice", doc="dmax-practice: ゼロから作るモンハン最適化シミュレータ")
 
-    # 変数定義
-    mdl.X_use = Var(within=NonNegativeIntegers, initialize=0)
-    mdl.Y_use = Var(within=NonNegativeIntegers, initialize=0)
+# 変数定義
+mdl.X_use = Var(within=NonNegativeIntegers, initialize=0)
+mdl.Y_use = Var(within=NonNegativeIntegers, initialize=0)
 
-    # 制約条件定義
-    def constraint_1(mdl):
-        return 2 * mdl.X_use + 1 * mdl.Y_use >= 5
+# 制約条件定義
+def constraint_1(mdl):
+    return 2 * mdl.X_use + 1 * mdl.Y_use >= 5
 
-    mdl.const_1 = Constraint(rule=constraint_1)
+mdl.const_1 = Constraint(rule=constraint_1)
 
-    def constraint_2(mdl):
-        return 1 * mdl.X_use + 2 * mdl.Y_use <= 4
+def constraint_2(mdl):
+    return 1 * mdl.X_use + 2 * mdl.Y_use <= 4
 
-    mdl.const_2 = Constraint(rule=constraint_2)
+mdl.const_2 = Constraint(rule=constraint_2)
 
-    # 目的関数定義: 50 + 50 * X_use + 40 * Y_use を最大化
-    def objective_function(mdl):
-        return 50 + 50 * mdl.X_use + 40 * mdl.Y_use
+# 目的関数定義: 50 + 50 * X_use + 40 * Y_use を最大化
+def objective_function(mdl):
+    return 50 + 50 * mdl.X_use + 40 * mdl.Y_use
 
-    mdl.OBJ = Objective(rule=objective_function, sense=maximize)
+mdl.OBJ = Objective(rule=objective_function, sense=maximize)
 ```
 
 pyomo で目的関数を定義する際には Objective クラスを利用します。 Objective クラスの取り扱いは Constraint とほぼ同じです。
@@ -1202,7 +1208,7 @@ pyomo で目的関数を定義する際には Objective クラスを利用しま
 このようにして作成した目的関数を、動的属性によりモデルに追加します。
 
 ```py
-    mdl.OBJ = Objective(rule=objective_function, sense=maximize)
+mdl.OBJ = Objective(rule=objective_function, sense=maximize)
 ```
 
 ここまでで、モデルの定義がすべて完了しました。最後にモデルをファイルに出力しましょう。
@@ -1211,41 +1217,40 @@ pyomo で目的関数を定義する際には Objective クラスを利用しま
 ```py
 from pyomo.environ import *
 
-if __name__ == '__main__':
-    # モデル定義
-    mdl = ConcreteModel(name="dmax-practice", doc="dmax-practice: ゼロから作るモンハン最適化シミュレータ")
+# モデル定義
+mdl = ConcreteModel(name="dmax-practice", doc="dmax-practice: ゼロから作るモンハン最適化シミュレータ")
 
-    # 変数定義
-    mdl.X_use = Var(within=NonNegativeIntegers, initialize=0)
-    mdl.Y_use = Var(within=NonNegativeIntegers, initialize=0)
+# 変数定義
+mdl.X_use = Var(within=NonNegativeIntegers, initialize=0)
+mdl.Y_use = Var(within=NonNegativeIntegers, initialize=0)
 
-    # 制約条件定義
-    def constraint_1(mdl):
-        return 2 * mdl.X_use + 1 * mdl.Y_use >= 5
+# 制約条件定義
+def constraint_1(mdl):
+    return 2 * mdl.X_use + 1 * mdl.Y_use >= 5
 
-    mdl.const_1 = Constraint(rule=constraint_1)
+mdl.const_1 = Constraint(rule=constraint_1)
 
-    def constraint_2(mdl):
-        return 1 * mdl.X_use + 2 * mdl.Y_use <= 4
+def constraint_2(mdl):
+    return 1 * mdl.X_use + 2 * mdl.Y_use <= 4
 
-    mdl.const_2 = Constraint(rule=constraint_2)
+mdl.const_2 = Constraint(rule=constraint_2)
 
-    # 目的関数定義
-    def objective_function(mdl):
-        return 50 + 50 * mdl.X_use + 40 * mdl.Y_use
+# 目的関数定義
+def objective_function(mdl):
+    return 50 + 50 * mdl.X_use + 40 * mdl.Y_use
 
-    mdl.OBJ = Objective(rule=objective_function, sense=maximize)
+mdl.OBJ = Objective(rule=objective_function, sense=maximize)
 
-    # 問題ファイルを出力
-    # symbolic_solver_labels を有効化して変数名等の情報を保持
-    mdl.write("dmax-practice-problem.nl", format="nl", io_options={'symbolic_solver_labels': True})
-    print("最適化問題のモデルをファイルを出力しました")
+# 問題ファイルを出力
+# symbolic_solver_labels を有効化して変数名等の情報を保持
+mdl.write("dmax-practice-problem.nl", format="nl", io_options={'symbolic_solver_labels': True})
+print("最適化問題のモデルをファイルを出力しました")
 ```
 
 以下のように、モデルインスタンスの `write` メソッド `mdl.write()` を利用することで、定義したモデルをファイルに出力することができます。
 
 ```py
-    mdl.write("dmax-practice-problem.nl", format="nl", io_options={'symbolic_solver_labels': True})
+mdl.write("dmax-practice-problem.nl", format="nl", io_options={'symbolic_solver_labels': True})
 ```
 
 第1引数にはファイル名を指定します。
@@ -1262,7 +1267,7 @@ if __name__ == '__main__':
 
 ```sh
 # プログラムを実行
-$ uv run main.py
+$ uv run dmax-practice.py
 最適化問題のモデルをファイルを出力しました
 
 # ls コマンドでファイルが出力されたかどうか確認
@@ -1296,13 +1301,12 @@ OBJ
 これらのファイルがあると最適化問題の結果やモデルファイルが人間の読める形式で出力されるようになるため、結果の表示やデバッグに役立ちます。
 
 
-次はいよいよ、最適化ソルバーに最適化問題を解かせてみます。
+次は最適化ソルバーに最適化問題を解かせてみます。
 python プログラムに出力されたモデルのメインファイル `dmax-practice-problem.nl` をSCIPソルバーに入力して最適化してみましょう。
 
 まず、SCIPソルバーを対話モードで起動します。
 
 TODO: `SCIP> display problem` を追加したい
-TODO: readline 対応
 
 ```sh
 $ /home/dmax-scratch/SCIPOptSuite-8.0.3-Linux/bin/scip
@@ -1743,6 +1747,16 @@ if __name__ == '__main__':
 
 インデックスと Param クラスを利用して書き直したコード
 ```py
+# dmax-practice-index.py: 線形計画問題を解くための Pyomo コード (index 利用版)
+# 制約条件:
+# 0 <= X_use (ただし X_use は整数)
+# 0 <= Y_use (ただし Y_use は整数)
+# 2 * X_use + 1 * Y_use >= 5
+# 1 * X_use + 2 * Y_use <= 4
+#
+# 目的関数:
+# 50 * X_use + 40 * Y_use + 50 を最大化
+
 from pyomo.environ import *
 
 # モデル定義
@@ -1751,7 +1765,6 @@ mdl = ConcreteModel(name="dmax-practice", doc="dmax-practice: ゼロから作る
 # 変数定義
 mdl.x = Var([0, 1], within=NonNegativeIntegers, initialize=0)
 
-# パラメータ定義
 p_dict = {
     (0, 0): 2,
     (0, 1): 1,
@@ -1767,6 +1780,7 @@ q_dict = {
     2: 50,
 }
 
+# パラメータ定義
 mdl.p = Param([0, 1], [0, 1, 2], initialize=p_dict, within=Integers, default=0)
 mdl.q = Param([0, 1, 2], initialize=q_dict, within=Integers, default=0)
 
@@ -1789,14 +1803,10 @@ def objective_function(mdl):
 
 mdl.OBJ = Objective(rule=objective_function, sense=maximize)
 
-mdl.pprint()
-
-
 # 問題ファイルを出力
 # symbolic_solver_labels を有効化して変数名等の情報を保持
-mdl.write("dmax-practice-problem.nl", format="nl", io_options={'symbolic_solver_labels': True})
+mdl.write("dmax-practice-index-problem.nl", format="nl", io_options={'symbolic_solver_labels': True})
 print("最適化問題のモデルをファイルを出力しました")
-
 ```
 
 Param を導入したい理由は以下の2つです。
@@ -1808,53 +1818,14 @@ Param を導入したい理由は以下の2つです。
 
 
 
-
-
-```py
-from pyomo.environ import *
-mdl = ConcreteModel()
-
-mdl.x = Var([0, 1], within=NonNegativeIntegers, initialize=0)
-
-mdl.p = Param(['key1', 'key2'], default=0, initialize={'key1': 111, 'key2': 222}, within=Integers)
-
-mdl.q = Var(['key1', 'key2'], within=NonNegativeIntegers, initialize=0)
-```
-
-
-
-
-var, rule, index を深堀りしたい。
-
-`rule` 関数の戻り値としては基本的に制約式を返す必要があります。制約式は `<=`, `>=`, `==` を含む関係式により定義します。
-したがって、もし「防具の合計数が必ず1でなければならない」という制約がある場合は、以下のような `==` による制約式を定義することになるでしょう。
-
-```py
-    def constraint_armor_leq(mdl):
-        return mdl.X_use + mdl.Y_use == 1
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ## モンハンワイルズのデータで最適化シミュを自作する
 
-次はいよいよ、実際のモンハンワイルズのデータを利用して最適化シミュレータを作成していきます。
+次は、実際のモンハンワイルズのデータを利用して最適化シミュレータを作成していきます。
 
 この章で実装する最適化シミュの名前は dmax-mini と呼ぶことにします。
 
 dmax-mini では装備やスキルの種類の数は絞りますが、実際の最適化シミュ (DMAX) で考慮している処理はすべて実装していきます。
-なので、こちらの dmax-mini をベースに対応するデータを拡張していけば DMAX と同じ最適化シミュが実装できるようになります。
+なので、こちらの dmax-mini をベースに対応するデータを拡張していけば DMAX MHWilds と同じ最適化シミュを実装できるようになります。
 
 ### 制約条件
 
@@ -1898,7 +1869,7 @@ dmax-mini では装備やスキルの種類の数は絞りますが、実際の�
 こちらも実装依存な面があります。
 
 
-:::message
+:::note info
 制約条件の提示は天下り式になってしまいました。
 できればなぜこの制約条件が登場したのか、どういう思考過程で登場したのか？について順番にボトムアップ形式で出して行きたかったところではありますが、難しかったです。
 また、読者的にも見通しが悪いと読みづらいかもしれないと思ったので、ロードマップ的な意味でも最初に書いてしまおうと思いました。
@@ -2337,7 +2308,6 @@ mdl.const_total_equipment_type = Constraint(single_equip_type_set, rule=const_to
 まずは実装全体を示し、後に `dmax-mini-1.py` と `dmax-mini-2.py` の差分コードの説明をします。
 `dmax-mini-2.py` は以下です。実行方法は `$ uv run dmax-mini-2.py` です。
 
-:::details dmax-mini-2.py
 ```py
 # dmax-mini-2.py : 制約条件(1)-(2) を実装
 from pyomo.environ import *
@@ -2477,7 +2447,6 @@ import os
 output_filename = f"{os.path.splitext(os.path.basename(__file__))[0]}-problem.nl"
 mdl.write(output_filename, format="nl", io_options={'symbolic_solver_labels': True})
 ```
-:::
 
 `dmax-mini-1.py` と `dmax-mini-2.py` の差分コードの説明をします。
 
@@ -2586,9 +2555,19 @@ $ ls -lh  | grep dmax-mini-2-prob
 以下のようにSCIPソルバーを起動し、コマンドを実行します。
 
 ```sh
-$ rlwrap -f . -c /home/dmax-scratch/SCIPOptSuite-8.0.3-Linux/bin/scip
+# 問題ファイルが存在するディレクトリに移動
+$ cd ~/dmax-from-scratch-sample-code/
+
+# scip 対話モードを起動 (rscip エイリアスについては環境構築のセクションを参照)
+$ rscip
+
+# read コマンドで問題ファイルを読み込み
 SCIP> read dmax-mini-2-problem.nl
+
+# optimize コマンドで最適化
 SCIP> optimize
+
+# display solution コマンドで最適化の結果を表示
 SCIP> display solution
 ```
 
@@ -2596,7 +2575,7 @@ SCIP> display solution
 `required_skills` において `逆襲Lv2` を指定しているため、`レギオスヘルムα (逆襲Lv1)` と `レギオスメイルα (逆襲Lv1)` が採用されていることが分かります。
 
 ```sh
-$ rlwrap -f . -c /home/dmax-scratch/SCIPOptSuite-8.0.3-Linux/bin/scip
+$ rscip
 
 SCIP> read dmax-mini-2-problem.nl
 ...省略
@@ -3122,21 +3101,22 @@ mdl.write(output_filename, format="nl", io_options={'symbolic_solver_labels': Tr
 
 以上でスキルシミュレーターが完成しました！
 
-前回と同様に以下の手順で実行できます。必須スキルするなどして実験してみて下さい。
+前回と同様に以下の手順で実行できます。必須スキルを変更するなどして実験してみて下さい。
 
 ```sh
 # 問題ファイルを出力
+$ cd ~/dmax-from-scratch-sample-code/
 $ uv run dmax-mini-3.py
 ...省略
 
 # 問題ファイルを確認
 $ ls -lh  | grep dmax-mini-3-prob
--rw-r--r-- 1 hoge hoge  634 Aug  7 09:21 dmax-mini-3-problem.col
--rw-r--r-- 1 hoge hoge 3.2K Aug  9 15:40 dmax-mini-3-problem.nl
--rw-r--r-- 1 hoge hoge 1004 Aug  9 15:41 dmax-mini-3-problem.row
+-rw-r--r-- 1 dmax-scratch dmax-scratch  634 Aug 15 22:54 dmax-mini-3-problem.col
+-rw-r--r-- 1 dmax-scratch dmax-scratch 3.2K Aug 15 22:54 dmax-mini-3-problem.nl
+-rw-r--r-- 1 dmax-scratch dmax-scratch 1007 Aug 15 22:54 dmax-mini-3-problem.row
 
 # SCIPソルバーを起動し、問題ファイルを読み込んで最適化
-$ rlwrap -f . -c /home/dmax-scratch/SCIPOptSuite-8.0.3-Linux/bin/scip
+$ rscip
 SCIP> read dmax-mini-3-problem.nl
 SCIP> optimize
 SCIP> display solution
@@ -3162,7 +3142,7 @@ SCIP> display solution
 
 ダメージ計算式は概ね以下のような形になります。
 
-:::message
+:::note info
 - こちらは推定されたダメージ計算式です。できるだけゲーム内の計算式に近づけてはありますが、ゲーム内の計算式と一致しない可能性はあります。
 - 説明のために登場スキルを絞った計算式になっています。DMAX MHWilds で利用している完全な形のダメージ計算式が知りたい場合は `dmax.py` を参照してください。
 :::
@@ -3264,7 +3244,7 @@ mdl.q = Var(equip_names, within=NonNegativeIntegers, initialize=0)
 スキルレベルのインデックスは普通のリストとして `[0, 1, 2, 3, 4, 5, 6, 7]` のように定義してもよいですが、pyomo には `RangeSet` という連続整数の集合を定義するための専用クラスがあるので、こちらを利用しましょう。
 `RangeSet` クラスを利用すると、スキルレベルのインデックスは `RangeSet(0, 7)` と定義できます。
 
-:::message
+:::note warn
 - スキルが発動しないことを表現するために `Lv0` が必要です
 - 全てのスキルを同じ形式で処理するために、全スキルの最大レベルを `Lv7` と定義しています
 巧撃などは最大レベルが `Lv5` であり `Lv7` は存在しないのですが、あっても困らない上に楽に実装できるようになるので `Lv7` まで定義しておきましょう。その分変数は増えますが、きっと最適化ソルバーを通せば誤差になると思います。
@@ -3444,21 +3424,8 @@ def objective(mdl):
         )
 ```
 
-
-以上で `dmax-mini-4.py` の実装が完了し、最適化シミュに必要な制約条件を一通り実装できました。
-
-| 実装完了 |  制約条件   |                                   制約内容                                   |
-| -------- | ----------- | ---------------------------------------------------------------------------- |
-| ✅      | 制約条件(1) | 各部位で装備できる個数は1以下 (部位は次の7つ 頭・胴・腕・腰・脚・護石・武器) |
-| ✅      | 制約条件(2) | ユーザが指定したスキルレベルの条件を満たす                                   |
-| ✅      | 制約条件(3) | 装飾品はスロットレベル以上の大きさのスロットにしか装着できない               |
-| ✅      | 制約条件(4) | ダメージ計算式において有効な同名スキルのスキルレベルは1つのみ                |
-| ✅      | 制約条件(5) | ダメージ計算式において有効なスキルは装備中のスキルのみ                       |
-| ✅      | 制約条件(6) | 会心率の上限は100%                                                           |
-
 `dmax-mini-4.py` のソースコード全体は以下のようになります。
 
-:::details dmax-mini-4.py
 ```py:dmax-mini-4.py
 # dmax-mini-3.py: 制約条件(1)-(3) を実装
 from pyomo.environ import *
@@ -3715,7 +3682,18 @@ import os
 output_filename = f"{os.path.splitext(os.path.basename(__file__))[0]}-problem.nl"
 mdl.write(output_filename, format="nl", io_options={'symbolic_solver_labels': True})
 ```
-:::
+
+以上で `dmax-mini-4.py` の実装が完了し、最適化シミュに必要な制約条件を一通り実装できました。
+
+| 実装完了 |  制約条件   |                                   制約内容                                   |
+| -------- | ----------- | ---------------------------------------------------------------------------- |
+| ✅      | 制約条件(1) | 各部位で装備できる個数は1以下 (部位は次の7つ 頭・胴・腕・腰・脚・護石・武器) |
+| ✅      | 制約条件(2) | ユーザが指定したスキルレベルの条件を満たす                                   |
+| ✅      | 制約条件(3) | 装飾品はスロットレベル以上の大きさのスロットにしか装着できない               |
+| ✅      | 制約条件(4) | ダメージ計算式において有効な同名スキルのスキルレベルは1つのみ                |
+| ✅      | 制約条件(5) | ダメージ計算式において有効なスキルは装備中のスキルのみ                       |
+| ✅      | 制約条件(6) | 会心率の上限は100%                                                           |
+
 
 それでは `dmax-mini-4.py` を実行し、出力された問題ファイルを SCIP ソルバーで最適化してみましょう。
 
@@ -3726,14 +3704,10 @@ $ uv run dmax-mini-4.py
 # 問題ファイルの確認
 $ ls -lh  | grep dmax-mini-4-prob
 
-# SCIPソルバーを起動
-$ rlwrap -f . -c /home/dmax-scratch/SCIPOptSuite-8.0.3-Linux/bin/scip
-
-# SCIP対話モードで問題ファイルの読み込みと最適化
-SCIP> read dmax-mini-4-problem.nl
-
+# SCIPソルバーを起動し、問題ファイルを読み込んで最適化
+$ rscip
+SCIP> read dmax-mini-3-problem.nl
 SCIP> optimize
-
 SCIP> display solution
 ```
 
