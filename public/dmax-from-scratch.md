@@ -66,7 +66,7 @@ https://github.com/hotckrin/dmax-from-scratch-sample-code/blob/main/dmax.py#
 
 モンハンの場合、「制約条件」が「装備の条件」に相当し、「目的関数」が「ダメージ計算式」に相当します。
 
-![](images/ponti1.drawio.png)
+![ponti1.drawio.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/ff8df8d4-cc6f-4cea-9b34-c08b65d260c1.png)
 
 ここで言う装備の条件とは、例えば「頭防具は1つしか装備できない」とか「装飾品はスロットが合うものしか装備できない」のような条件です。
 ゲームをプレイする上で暗黙のうちに了解しているさまざまな装備の制約を入力する必要があります。
@@ -75,7 +75,7 @@ https://github.com/hotckrin/dmax-from-scratch-sample-code/blob/main/dmax.py#
 最適化ソルバーの嬉しい点は、最適化ソルバーの内部の詳細な仕組みを知る必要がないことです。
 つまり、この記事で作っていく最適化シミュ は「難しい部分は最適化ソルバーに丸投げ！」というアプローチで、最大ダメージ装備を探すシミュレータということです。
 
-![](images/ponti2.drawio.png)
+![ponti2.drawio.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/bdeebabb-b0d1-478f-95da-567dbc3834f1.png)
 
 ただし、最適化ソルバーは一定のフォーマットで入力しなければ最適化問題を解くことができません。
 そのため、最適化シミュを実装するうえでのチャレンジは「装備の条件をどのようにして最適化ソルバーが解ける形式に落とし込むか？」という点になります。
@@ -173,7 +173,7 @@ A_use + B_use <= 1
 0 <= B_use <= 1 (ただし B_use は整数)
 ```
 
-![](images/figure1.png)
+![figure1.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/5a488902-16de-443b-8623-91b7143ad221.png)
 
 ここで、さらに以下の制約式を追加すると、制約式の範囲は図のような三角形の領域になります。
 
@@ -181,19 +181,19 @@ A_use + B_use <= 1
 A_use + B_use <= 1
 ```
 
-![](images/figure2.png)
+![figure2.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/f15eb638-2404-46ff-935d-f2ef158c85ff.png)
 
 最後に目的関数 `20 * A_use + 10 * B_use` はグラフ上でどのように表現できるかを考えます。
 まずは、 `20 * A_use + 10 * B_use = 30` になる点をリストアップしてみます。
 (A_use, B_use ) = (0, 3), (1, 1), (2, -1) となります。
 これを線でつなぐと、 `20 * A_use + 10 * B_use = 30` を満たす線を引くことができます。
 
-![](images/figure3.png)
+![figure3.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/7d881574-8285-4a90-ae6e-8b9e3002e463.png)
 
 
 次に `20 * A_use + 10 * B_use = 40` となる等高線を引くと以下のようになります。
 
-![](images/figure4.png)
+![figure4.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/66e5ae1a-2447-4454-8480-ae64ab8968e6.png)
 
 ここで、 20 * A_use + 10 * B_use はダメージ計算式なので、大きければ大きいほどプレイヤーにとって嬉しいです。
 なので、等高線をできるだけ右上にズラしていきたいです。
@@ -201,7 +201,7 @@ A_use + B_use <= 1
 よって、A_use と B_use のグラフ上の点のうち、最も等高線が右上になる値の組み合わせ (A_use, B_use) = (1, 0) が、ダメージ計算式を最大化する値の組み合わせということになります。
 また、`20 * A_use + 10 * B_use = 20` より最適解によって得られる最大ダメージは 20 であることも分かります。
 
-![](images/figure5.png)
+![figure5.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/7a75462f-7f66-4d5a-bc64-f9c82180fba8.png)
 
 つまり、ダメージ計算式の等高線を引き、等高線が高い方から低い方へ動かしていき、制約条件の表す範囲に重なる等高線まで動かして止めれば最大化問題が解けたことになります。
 
@@ -322,12 +322,12 @@ dmg = {(30) + 10 * Y_use + 30 * X_use}
 青い三角形の領域が制約条件を満たす解の範囲です。
 さらに、整数の制約も考慮すると解の候補は `(X_use, Y_use) = (2,1), (4,0)` のいずれかに絞れます。
 
-![](images/figure6.png)
+![figure6.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/244cd8fe-f4ef-4933-b60e-fd6db40ce66b.png)
 
 次に先ほどと同様に目的関数の等高線を考慮すると、`50 + 50 * X_use + 40 * Y_use = 250` の場合に制約条件を満たし、かつ目的関数が最大となることがわかります。
 よって、制約条件を満たす解のうち最大ダメージを実現する解は (4,0) であり、その最大ダメージは 250 であることがわかりました。
 
-![](images/figure7.png)
+![figure7.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/3db7a16a-6de4-4719-b3bd-e65e2b1fb1b8.png)
 
 このセクションでは、問題を制約条件と目的関数に落とし込み、さらに作図により最適解を求めました。
 後のセクションでは、この問題をプログラムとして表現し、最適化ソルバーに解かせるところまで実施します。
@@ -458,7 +458,7 @@ MINLP (Mixed Integer Nonlinear Programming) は混合整数非線形計画問題
 
 最適解を得るまでの処理の流れは以下のようになります。
 
-![](images/ponti3.drawio.png)
+![ponti3.drawio.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/77418fbc-c04d-49b9-bb47-93d6a438c24d.png)
 
 > 1. ゲームをベースに装備の制約条件を整理し、ダメージ計算式を推定します
 > 2. Python プログラムにより制約条件とダメージ計算式を実装し、最適化問題のモデルに追加します
@@ -738,14 +738,14 @@ https://www.scipopt.org/index.php#download
 
 ドロップダウンメニューから Version `8.0.3` と OS `Linux` を選択して下さい。
 
-![](images/scip1.png)
+![scip1.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/2c8ede17-7843-472e-94aa-44fe65a4203e.png)
 
 本記事ではソースコードからのビルドではなく、コンパイル済みパッケージを利用します。
 
 Precompiled Packages のセクションに `SCIPOptSuite-8.0.3-Linux-ubuntu.sh` のリンクがあることを確認します。
 `SCIPOptSuite-8.0.3-Linux-ubuntu.sh` のリンクを右クリックし「リンクのアドレスをコピー」を選択します。
 
-![](images/scip2.png)
+![scip2.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/0913f99e-494c-43b2-a9e5-27f79c3978f3.png)
 
 以下のコマンドを実行して、SCIP 8.0.3 のインストールスクリプトをダウンロードします。
 
@@ -1419,7 +1419,7 @@ objconstant                                        50   (obj:1)
 
 前のセクションでグラフを利用して、最適化を求めた結果と一致していることも確認できます。
 
-![](images/figure7.png)
+![figure7.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/3db7a16a-6de4-4719-b3bd-e65e2b1fb1b8.png)
 
 以上の結果から、ゲーム内の条件が以下のような形式だった場合に、そのゲーム内で実現できる最大ダメージは250であり、実現するための装備は「防具Xのみ4つ装備」であることがわかりました。
 
@@ -1449,7 +1449,7 @@ objconstant                                        50   (obj:1)
 流れをまとめると
 「ゲーム内の条件を制約式と目的関数に落とし込み、Python プログラムによって最適化問題をモデルとしてファイルに出力し、モデルファイルを最適化ソルバーに読み込ませて最適解を得る」という流れになっていました。
 
-![](images/ponti3.drawio.png)
+![ponti3.drawio.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/77418fbc-c04d-49b9-bb47-93d6a438c24d.png)
 
 `dmax-practice.py` の実装では最適化問題の変数や制約条件の基本的な定義の仕方を確認しました。しかし、**実際のゲーム内の膨大なデータや制約条件を表現するためにはまだ手数が足りません。**
 次のセクションで DMAX を実装するための準備運動として、Pyomo の `index`, `Var クラス`, `Param クラス`を触ってみましょう。
@@ -1932,7 +1932,7 @@ print("最適化問題のモデルをファイルを出力しました")
 
 モンハンワイルズの最適化シミュにおける解の候補は以下のようなテーブルで表現できます。
 
-![](images/table2.drawio.png)
+![table2.drawio.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/0a91c424-c09a-4073-a788-2472f0567f6b.png)
 
 各行が、各装備を何個装備するのかを示してます。
 上記テーブルの例では、「レダゼルトγシリーズ一式に挑戦の護石Ⅱを装備し、スロットに装飾品を4つ着けた装備」を示しています。
@@ -1954,7 +1954,7 @@ print("最適化問題のモデルをファイルを出力しました")
 
 他の解の候補としては以下のような例が挙げられます。
 
-![](images/table3.drawio.png)
+![table3.drawio.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/14ae9f9a-4098-45d8-a5cb-e53dff89ec7a.png)
 
 
 ```
@@ -1993,7 +1993,7 @@ print("最適化問題のモデルをファイルを出力しました")
 例えば「頭防具は1個以下しか装備できない」という制約条件を表すためには、「どの装備が頭防具であるのか？」を示すデータが必要です。
 先程のテーブルに新しい列として `頭` という属性を追加し、各防具の頭属性データを入力してみると以下のようになります。
 
-![](images/table4.drawio.png)
+![table4.drawio.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/81ffed54-2448-4530-a013-c522cf0feed0.png)
 
 ここで、制約条件(1) のために、解1における頭装備の合計数を計算するにはどうすればよいでしょうか？
 
@@ -2005,19 +2005,19 @@ print("最適化問題のモデルをファイルを出力しました")
 
 > (解1における頭装備の合計数) = (各行における`頭`列と`装備個数`列の数値の積の和)
 
-![](images/table5.drawio.png)
+![table5.drawio.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/b3336ee5-7272-443f-a9ac-27d6b4879cc6.png)
 
 同様にして各装備が持っている装備タイプや付属スキルなどの属性を新しい列として追加すると以下のようなテーブルになります。
 
 弱点特効Lv1がついている装備`レダゼルトヘルムγ`や`痛撃珠【３】`には`弱点特効`列に 1 が入力されています。
 また、巧撃スキルLv3がついている装備`反攻の護石Ⅲ`には`巧撃`列に 3 が入力されています。
 
-![](images/table6.drawio.png)
+![table6.drawio.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/bb31cdf8-ba20-425a-90b7-441e36de8ddc.png)
 
 このテーブルから解1における胴防具の合計数を計算したければ`胴`列と`解1`列を抽出し、各行の掛け算の結果の合計を計算すればよいです。
 また、解1における`弱点特効`スキルの合計レベルを計算したければ`弱点特効`列と`解1`列を抽出し、各行の掛け算の結果の合計を計算すればよいです。
 
-![](images/table7.drawio.png)
+![table7.drawio.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/468cc646-9074-46fc-a8a3-f22554fc7b5d.png)
 
 つまり、特定の解におけるある属性の合計値が必要な場合は、対象の属性列と解の列を抽出して、各行の積の和を計算すれば良いことがわかります。
 
@@ -2035,7 +2035,7 @@ print("最適化問題のモデルをファイルを出力しました")
 i は装備名を表しています。 `i = レダゼルトヘルムγ, レダゼルトメイルγ, ... 痛撃珠【３】` です。
 j は属性を表しています。 `j = 頭, 胴, 腰` です。
 
-![](images/table8.drawio.png)
+![table8.drawio.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/18a122f6-7fae-48d0-bac4-9883b8293443.png)
 
 2次元配列のパラメータ `p[i][j]` と解の変数 `q[i]` を利用すると制約式 (1) は以下のように書けます。
 
@@ -2179,7 +2179,7 @@ step1 の部分では `equip_all` という全装備のデータが保存され�
 | `attribute_set` | 装備の属性のインデックス (表の横軸)                                                      |
 | `eqinfo_matrix` | 装備データの2次元配列`equip_names` と `attribute_set` で引いて装備データを取得できる |
 
-![](images/table9.drawio.png)
+![table9.drawio.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/ac3f244a-d653-4370-9e20-ebd0e1dfbbbc.png)
 
 step2 の部分では空のモデルを作成し、パラメータと変数をモデルに追加しています。
 
@@ -2729,7 +2729,7 @@ SCIP Status        : problem is solved [infeasible]
 Lv2装飾品はLv1スロットの領域に侵食してLv1スロットに装着することはできませんし、Lv1装飾品もLv2スロットの領域に対して侵食できません。
 お互いに不可侵の状態になっていると言えます。
 
-![](images/deco1.drawio.png)
+![deco1.drawio.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/3f5a5dcd-9414-4c38-bf96-fa8214afc620.png)
 
 さて、制約条件(3A)は実際のゲームの条件に比べて、**より高いレベルのスロットに装着できない** という点が厳しすぎました。
 次はこの点を解消して **よりレベルの高いスロットにも装着できる** という性質を追加したいです。
@@ -2751,7 +2751,7 @@ Lv2装飾品はLv1スロットの領域に侵食してLv1スロットに装着�
 制約条件(3A)にあったLv2スロット領域とLv1スロット領域を分断する壁がなくなりました。
 Lv2装飾品はLv1スロットの領域に侵食してLv1スロットにも装着できますし、逆も同様に侵食できます。
 
-![](images/deco2.drawio.png)
+![deco2.drawio.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/9d838d0f-a3e3-49d0-9ffd-6c46764b074a.png)
 
 さて、実際のゲームに照らしわせると、侵食方向のうち**Lv1装飾品Lv2スロット領域に侵食する方向**は正しいですが、**Lv2装飾品がLv1スロット領域に侵食する方向**は間違っています。
 なので、現状の制約条件から **Lv2装飾品がLv1スロット領域に侵食する方向** のみ禁止して、非対称性を再現したいです。
@@ -2763,7 +2763,7 @@ Lv2装飾品の侵食範囲の限界は装備中のLv2スロットの数です�
 (\text{Lv2スロ数}) \geq (\text{Lv2装飾品数})
 ```
 
-![](images/deco3.drawio.png)
+![deco3.drawio.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/f7c75a12-1527-41e9-ab3b-8c086fb1f8ac.png)
 
 制約条件(3B) と合わせて考えると以下のようになります。
 
@@ -2786,7 +2786,7 @@ Lv2装飾品の侵食範囲の限界は装備中のLv2スロットの数です�
 \end{array}
 ```
 
-![](images/deco4.drawio.png)
+![deco4.drawio.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/494a9d98-5b93-4003-80b3-0ad32655968c.png)
 
 ここから侵食範囲の限界を設定していきましょう。
 まず、**Lv3装飾品がLv2以下のスロット領域に侵食する方向** を禁止したいです。Lv3装飾品の侵食範囲の限界はLv3スロットの数です。
@@ -2799,7 +2799,7 @@ Lv2装飾品の侵食範囲の限界は装備中のLv2スロットの数です�
 \end{array}
 ```
 
-![](images/deco5.drawio.png)
+![deco5.drawio.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/f7771e10-81b8-48e5-97d8-719c67298da9.png)
 
 さらに、**Lv3装飾品とLv2装飾品がLv1以下のスロット領域に侵食する方向** も禁止したいです。
 Lv3装飾品とLv2装飾品の侵食範囲の限界はLv3スロットとLv2スロットの数の合計なので左辺は `(Lv3スロ数}) + (Lv2スロ数}) >=` となります。
@@ -2813,7 +2813,7 @@ Lv3装飾品とLv2装飾品の侵食範囲の限界はLv3スロットとLv2ス�
 \end{array}
 ```
 
-![](images/deco6.drawio.png)
+![deco6.drawio.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/c399056a-7785-4cff-83db-3d1f4264a9c6.png)
 
 結果的に制約条件(3)は以下の式にまとめられます。
 
