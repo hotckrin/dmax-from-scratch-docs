@@ -2,23 +2,22 @@
 
 この記事では自動ダメージ最大化シミュレータを作る方法をゼロから解説していきます。
 
-この記事を読むと、**ゲーム中でダメージが最大になる構成を自動で見つけてくれる**シミュレータを実装することができます。
-この自動ダメージ最大化シミュレーターの動作イメージを知りたい方は、以下のサイトで `最適化ボタン` を押してみて下さい。
+この記事を読むと、**ゲーム中でダメージが最大になる装備構成を自動で見つけてくれる**シミュレータを実装することができます。シミュの動作イメージを知りたい方は以下のサイトを開いて右下の `最適化ボタン` を押してみて下さい。
 
 https://www.mhrspeedrun.com/dmax-mhwilds/
 
-こちらのサイトはモンハンワイルズの弓専用の自動ダメージ最大化シミュレーターですが、本記事を読むと弓に限らず**別武器のシミュ**も実装できますし、より馴染みのある**スキルシミュレーター**も実装可能です。
+こちらのサイトは弓専用の自動ダメージ最大化シミュレーターですが、本記事を読むと弓に限らず**別武器のシミュ**も実装できますし、より馴染みのある**スキルシミュレーター**も実装可能です。**記事の途中でスキルシミュも実装します。**
 
-先に結論の実装を読みたい方は以下のリポジトリの `dmax.py` というファイルを参照して下さい。この500行程度のコードがシミュの核心部分です。(UIや入出力は含みません)
+結論の実装を先に読みたい方は以下のリポジトリの `dmax.py` というファイルを参照して下さい。この500行程度のコードがシミュの核心部分です。
 
 https://github.com/hotckrin/dmax-from-scratch-sample-code/blob/main/dmax.py#
 
-コードはシンプルですが、ハイコンテクストなのでわかりづらいと思います。本記事を読了した後にはこちらのコードを理解し、改変できるようになっていると思います。
-本記事は1つの記事で全文とソースコードを掲載しており、折りたたみもありません。したがって、ソースコードのわからない部分を検索して**辞書**のように利用することも可能です。
+コードはシンプルですが、ハイコンテクストなのでわかりづらいと思います。本記事を読了した後にはこちらのコードを理解し、改変できるようになります。
+本記事は少し長いですが、1つの記事で全文とソースコードを掲載しており折りたたみもありません。したがって、ソースコードのわからない部分を検索して**辞書**のように利用することも可能です。
 
 文章の構成はシミュレーターの**解説→実装**という順序になっています。
-具体例とポンチ絵を駆使してできるだけ詳しく、発想から説明するように心がけます。
-本記事を読んで実装した読者が、サンプルコードをベースに別武器や次回作のシミュを実装できるようになる記事を目指します。
+**具体例**と**ポンチ絵**を駆使してできるだけ詳しく、発想から説明するように心がけます。
+サンプルコードをベースに読者が別武器や次回作のシミュを実装できるような記事を目指します。
 
 
 ## 自動ダメージ最大化シミュレータとはなにか？
@@ -28,17 +27,17 @@ https://github.com/hotckrin/dmax-from-scratch-sample-code/blob/main/dmax.py#
 モンスターハンターというゲームには、さまざまな装備があり、装備の組み合わせが変わるとモンスターに与えるダメージが変化します。
 この与ダメージが最大になる装備の組み合わせを自動で考えてくれるのが自動ダメージ最大化シミュレータです。
 
-通常は`スキルシミュレーター`と`ダメージシミュレーター`を交互に利用して、実現可能でダメージができるだけ高い装備を探すというアプローチを取ります。
-自動ダメージ最大化シミュレーターでは、この **`スキルシミュ`と`ダメシミュ`を利用して最大ダメージ構成を見つける** という処理を自動で実行し、かつ、それが最大ダメージ構成であることを保証してくれます。
+通常は 「**スキルシミュレーターとダメージシミュレーターを交互に利用して、実現可能でダメージができるだけ高い装備を探す**」というアプローチを取ります。
+自動ダメージ最大化シミュレーターでは、この 「`スキルシミュ`と`ダメシミュ`を利用して最大ダメージ構成を見つける」という処理を**自動で実行し、かつ、それが最大ダメージ構成であることを保証**してくれます。
 
-自動ダメージ最大化シミュレータでは長いので以降は 最適化シミュ と表記します。
+自動ダメージ最大化シミュレータでは長いので以降は**最適化シミュ**と表記します。
 
 ## 自動ダメージ最大化シミュレータの仕組み
 
-自動ダメージ最大化シミュレータの仕組みを一言で言うと、「最適化ソルバーに解かせよう！」というものになります。
+自動ダメージ最大化シミュレータの仕組みを一言で言うと、**「最適化ソルバーに解かせよう！」**というものになります。
 
-世の中には最適化ソルバーという素晴らしいツールがあり、これがモンハンの最大ダメージ構成を考える上でのさまざまな難しい問題をまとめて解決してくれます。
-最適化ソルバーの内部の仕組みは難しいですが、利用するだけであればそれほど難しくはありません。
+世の中には**最適化ソルバー**という素晴らしいツールがあり、これがモンハンの最大ダメージ構成を考える上でのさまざまな難しい問題をまとめて解決してくれます。
+最適化ソルバーの内部の仕組みは難しいですが、**利用するだけであればそれほど難しくはありません。**
 このドキュメントでは最適化ソルバーの性質と利用方法を見ていきます。
 
 最適化ソルバーには以下のような嬉しい性質があります。
@@ -91,7 +90,7 @@ https://github.com/hotckrin/dmax-from-scratch-sample-code/blob/main/dmax.py#
 
 非常にシンプルなサンプルデータを用意してみました。
 
-ダメージ計算式は武器の攻撃力をそのまま参照するため、攻撃力が高い武器Aのほうが高い与ダメージを得ることができます。<br>
+ダメージ計算式は武器の攻撃力をそのまま参照するため、攻撃力が高い武器Aのほうが高い与ダメージを得ることができます。
 つまり、この場合の最大ダメージ構成は「武器Aを1つ装備する」になります。
 
 ここまでシンプルであれば、もはや最適化ソルバーなどという大袈裟なものを持ち出すまでもなく、直感的に最も強い構成がわかると思います。
@@ -111,18 +110,18 @@ https://github.com/hotckrin/dmax-from-scratch-sample-code/blob/main/dmax.py#
 dmg = A_attack * A_use + B_attack * B_use
 ```
 
-A_attack は武器Aの攻撃力 20 であり、変化しません。<br>
-B_attack は武器Bの攻撃力 10 であり、変化しません。<br>
+A_attack は武器Aの攻撃力 20 であり、変化しません。
+B_attack は武器Bの攻撃力 10 であり、変化しません。
 つまりダメージ計算式は以下のように書けます。
 
 ```
 dmg = 20 * A_use + 10 * B_use
 ```
 
-A_use は武器Aを利用するかどうかを表す変数であり、0 または 1 のどちらかの値を取ります。<br>
+A_use は武器Aを利用するかどうかを表す変数であり、0 または 1 のどちらかの値を取ります。
 B_use は武器Bを利用するかどうかを表す変数であり、0 または 1 のどちらかの値を取ります。
 
-ここで、武器は1つしか利用できないという条件があるので、 A_use + B_use は2以上になることはありません。<br>
+ここで、武器は1つしか利用できないという条件があるので、 A_use + B_use は2以上になることはありません。
 つまり、A_use + B_use は1以下という制約条件が必要になります。
 
 ```
@@ -142,7 +141,7 @@ A_use + B_use <= 1
 20 * A_use + 10 * B_use
 ```
 
-さてここまでの流れをみて、「直感的にわかることを冗長で複雑に書いてる」と感じたかもしれません。私もそう思います。<br>
+さてここまでの流れをみて、「直感的にわかることを冗長で複雑に書いてる」と感じたかもしれません。私もそう思います。
 しかし、このような条件を数式に落とし込む手順を発展させていくと、問題が複雑になり人力ではとても解けないような規模の問題になった場合でも最適化ソルバーを利用して問題を解けるようになります。
 なので今しばらくお付き合いください。
 
@@ -190,7 +189,7 @@ A_use + B_use <= 1
 
 つまり、ダメージ計算式の等高線を引き、等高線が高い方から低い方へ動かしていき、制約条件の表す範囲に重なる等高線まで動かして止めれば最大化問題が解けたことになります。
 
-最適化ソルバーは、内部的にこのようなアプローチで最適化問題を解いています。<br>
+最適化ソルバーは、内部的にこのようなアプローチで最適化問題を解いています。
 実際にはもっと別の高度な仕組みで解いていますが、最適化シミュを実装するうえでは大雑把なアプローチを理解しておけば十分です。
 
 ## 装備の条件を数式に落とし込む 応用編
@@ -221,12 +220,12 @@ A_use + B_use <= 1
 
 (モンハンには重量制限はなく装備を無限に装備することもできませんが、ここでは条件を式に落とし込む練習のために都合の良い条件を設定しています。)
 
-さて、こうなると直感で解くのは難しくなってきたのではないでしょうか？<br>
+さて、こうなると直感で解くのは難しくなってきたのではないでしょうか？
 それでは先ほどと同じように、上記の条件を制約式として表現し、グラフという簡易的な最適化ソルバーで解いてみましょう。
 
 防具Xを装備する数を X_use, 防具Yを装備する数を Y_use とします。
 
-まず (条件1) を考えます。<br>
+まず (条件1) を考えます。
 
 > (条件1) 防具は0個以上のいくつでも装備できる
 
@@ -237,7 +236,7 @@ A_use + B_use <= 1
 0 <= Y_use (ただし Y_use は整数)
 ```
 
-次に (条件2) を考えます。<br>
+次に (条件2) を考えます。
 > (条件2) 体術は最低5個欲しい
 
 防具Xには体術が2個付いているので、防具Xを X_use 個装備したときの体術の合計は 2 * X_use 個になります。
@@ -303,7 +302,7 @@ dmg = {(30) + 10 * Y_use + 30 * X_use}
 
 それでは次にグラフに図示し、最適解を求めてみましょう。
 
-まず、制約条件をグラフに図示すると以下のようになります。<br>
+まず、制約条件をグラフに図示すると以下のようになります。
 青い三角形の領域が制約条件を満たす解の範囲です。
 さらに、整数の制約も考慮すると解の候補は `(X_use, Y_use) = (2,1), (4,0)` のいずれかに絞れます。
 
@@ -357,7 +356,7 @@ dmg = {(30) + 10 * Y_use + 30 * X_use}
 
 定式化の方針がわからない場合は以下のような問いを立ててください。
 
-> (1) 最適解を求める上で不変の値はなにか？ (定数はなにか)<br>
+> (1) 最適解を求める上で不変の値はなにか？ (定数はなにか)
 > (2) 最適解を求める上で変化する値はなにか？ (変数はなにか)
 
 例えば、先程の例で登場した「防具Dには体術Lv2がついている」という条件の場合、
@@ -376,7 +375,7 @@ dmg = {(30) + 10 * Y_use + 30 * X_use}
 TODO:
 ここにソルバーごとの解ける問題の種類、有償無償、性能を書きたい
 
-最適化ソルバーの性質として「変数同士の掛け算が少ないほど問題を高速に解ける」という性質があります。<br>
+最適化ソルバーの性質として「変数同士の掛け算が少ないほど問題を高速に解ける」という性質があります。
 例えば、変数 x と変数 y がある場合、
 
 > - `xy` という式よりも、 `3x + 2y` のような式のほうが高速に解ける
@@ -416,7 +415,7 @@ TODO:
 SCIPソルバーは無料で利用できる (Apache 2.0 License) ソルバーでありながら、MINLPという形式の問題を解くことができます。
 MINLP (Mixed Integer Nonlinear Programming) は混合整数非線形計画問題のことで、制約条件式や目的関数が非線形であっても解くことができますし、変数に整数の制約が追加されても (つまり混合整数問題であっても) 解くことができるちおう優れものです。
 
-つまり何が言いたいかというと「式に落とし込む際に変数同士の掛け算ができてしまっても、それを解けるソルバーはあるので諦めず実装してみましょう」ということです。<br>
+つまり何が言いたいかというと「式に落とし込む際に変数同士の掛け算ができてしまっても、それを解けるソルバーはあるので諦めず実装してみましょう」ということです。
 （ただし、問題の規模によっては実用に耐えないほど遅くなる可能性があります）
 
 こちらの詳細については数学的なトピックになります。
@@ -492,10 +491,10 @@ Python, Pyomo, SCIP はいずれもそれぞれのライセンスのもと無料
 | Python version とライブラリ管理     | uv                         |      |
 | 最適化ソルバー                      | SCIP version 8.0.3         | ◯   |
 
-OS を ubuntu としているのは主に最適化ソルバー SCIP の実行環境のためです。<br>
+OS を ubuntu としているのは主に最適化ソルバー SCIP の実行環境のためです。
 SCIP はC/C++で実装されており、バイナリ形式のファイルを実行する形になるため、OSを揃えておいたほうがトラブルは少ないと思います。
-一応 SCIP のパッケージとしては Linux/Windows/MacOS/Raspberry の環境のコンパイル済みパッケージが提供されているのでどの環境でも動かせると思いますが、この記事では試していません。<br>
-(ソースコードからビルドする際には Linux を推奨します。昔 Windows 上でソースからビルドしましたがかなり大変でした。)<br>
+一応 SCIP のパッケージとしては Linux/Windows/MacOS/Raspberry の環境のコンパイル済みパッケージが提供されているのでどの環境でも動かせると思いますが、この記事では試していません。
+(ソースコードからビルドする際には Linux を推奨します。昔 Windows 上でソースからビルドしましたがかなり大変でした。)
 
 Python や Pyomo ライブラリは基本的にどのOSでも問題なく動くと思います。
 ただしできればバージョンは揃えておきたいです。
@@ -1018,9 +1017,9 @@ $ scip -f dmax-mini-2-problem.nl
 
 以上で、本記事で必要な全ての環境構築が完了しました。お疲れ様でした。
 
-## 実装編
+## 実装練習: dmax-practice.py
 
-それでは pyomo によるモデルを出力するためのコードを書いていきましょう。
+それでは Pyomo によるモデルを出力するためのコードを書いていきましょう。ファイル名は `dmax-practice.py` とします。
 
 まずは最適化モデルを定義していくためのベースとなる Model クラスのインスタンスを作成します。
 
@@ -1098,7 +1097,7 @@ pyomo の変数は `Var` クラスで定義します。
 Python ではドットに続く名前すべてを属性と呼びます。属性は他のプログラミング言語におけるメンバ変数、フィールド、メソッド、プロパティ等に相当します。
 
 ```py
-    mdl.X_use = Var(within=NonNegativeIntegers, initialize=0)
+mdl.X_use = Var(within=NonNegativeIntegers, initialize=0)
 ```
 
 この `mdl.X_use = ` の部分に馴染みがない方もいるかもしれません。ここでは Model クラスにおそらく存在しないであろう `X_use` という属性を勝手に定義しています。
@@ -1178,7 +1177,7 @@ def constraint_armor_equal(mdl):
 
 上記の目的関数は以下のようにモデルに追加できます。
 
-```py
+```py:dmax-practice.py
 from pyomo.environ import *
 
 # モデル定義
@@ -1267,9 +1266,12 @@ mdl.write("dmax-practice-problem.nl", format="nl", io_options={'symbolic_solver_
 引数 `io_options` では出力のオプションを指定できます。`'symbolic_solver_labels': True` によって、人間が読める形式のラベルがファイルに保存されるようになります。
 デバッグを行う際にファイルが人間が読めると便利なので指定しておきましょう。
 
+以上で、最適化問題のモデルをファイルを出力するためのプログラム `dmax-practice.py` が完成しました。
+サンプルコードのリポジトリでは以下から `dmax-practice.py` を確認できます。
 
-以上で、最適化問題のモデルをファイルを出力するためのプログラムが完成しました。
-ターミナルから以下のようにして実行してみましょう。
+https://github.com/hotckrin/dmax-from-scratch-sample-code/blob/main/dmax-practice.py#
+
+それではターミナルから `dmax-practice.py` を以下のようにして実行してみましょう。
 `dmax-practice-problem.*` という名前のファイルが3つ出力されていれば成功です。
 
 ```sh
@@ -1278,10 +1280,10 @@ $ uv run dmax-practice.py
 最適化問題のモデルをファイルを出力しました
 
 # ls コマンドでファイルが出力されたかどうか確認
-$ ls -lh | grep dmax-practice
--rw-r--r-- 1 hoge hoge   12 Jul 21 11:40 dmax-practice-problem.col
--rw-r--r-- 1 hoge hoge  747 Jul 21 11:40 dmax-practice-problem.nl
--rw-r--r-- 1 hoge hoge   20 Jul 21 11:40 dmax-practice-problem.row
+$ ls -lh | grep dmax-practice-prob
+-rw-r--r-- 1 dmax-scratch dmax-scratch   12 Aug 15 22:33 dmax-practice-problem.col
+-rw-r--r-- 1 dmax-scratch dmax-scratch  747 Aug 15 22:33 dmax-practice-problem.nl
+-rw-r--r-- 1 dmax-scratch dmax-scratch   20 Aug 15 22:33 dmax-practice-problem.row
 ```
 
 出力されたファイルを眺めてみましょう。
@@ -1307,16 +1309,13 @@ OBJ
 `io_options={'symbolic_solver_labels': True}` を指定することによって、`.col` や `.row` 形式のファイルが出力されるようになります。
 これらのファイルがあると最適化問題の結果やモデルファイルが人間の読める形式で出力されるようになるため、結果の表示やデバッグに役立ちます。
 
-
 次は最適化ソルバーに最適化問題を解かせてみます。
 python プログラムに出力されたモデルのメインファイル `dmax-practice-problem.nl` をSCIPソルバーに入力して最適化してみましょう。
 
 まず、SCIPソルバーを対話モードで起動します。
 
-TODO: `SCIP> display problem` を追加したい
-
 ```sh
-$ /home/dmax-scratch/SCIPOptSuite-8.0.3-Linux/bin/scip
+$ rscip
 SCIP version 8.0.3 [precision: 8 byte] [memory: block] [mode: optimized] [LP solver: Soplex 6.0.3] [GitHash: 62fab8a2e3]
 Copyright (C) 2002-2022 Konrad-Zuse-Zentrum fuer Informationstechnik Berlin (ZIB)
 
@@ -1348,6 +1347,28 @@ read problem <dmax-practice-problem.nl>
 ============
 
 original problem has 3 variables (0 bin, 2 int, 0 impl, 1 cont) and 2 constraints
+```
+
+読み込んだ問題の中身を表示するためには `display problem` コマンドを実行します。
+`display problem` コマンドを実行すると以下のようになり、`VARIABLES` と `CONSTRAINTS` の部分に各変数や制約の詳細が表示されていることが確認できます。
+
+```sh
+SCIP> display problem
+
+STATISTICS
+  Problem name     : dmax-practice-problem
+  Variables        : 3 (0 binary, 2 integer, 0 implicit integer, 1 continuous)
+  Constraints      : 2 initial, 2 maximal
+OBJECTIVE
+  Sense            : maximize
+VARIABLES
+  [integer] <X_use>: obj=50, original bounds=[0,+inf]
+  [integer] <Y_use>: obj=40, original bounds=[0,+inf]
+  [continuous] <objconstant>: obj=1, original bounds=[50,50]
+CONSTRAINTS
+  [linear] <const_1>:  +2<X_use>[I] +<Y_use>[I] >= 5;
+  [linear] <const_2>: <X_use>[I] +2<Y_use>[I] <= 4;
+END
 ```
 
 次に、以下のように `optimize` コマンドを実行して最適化を実行してください。
@@ -1419,9 +1440,12 @@ objconstant                                        50   (obj:1)
 流れをまとめると
 「ゲーム内の条件を制約式と目的関数に落とし込み、Python プログラムによって最適化問題をモデルとしてファイルに出力し、モデルファイルを最適化ソルバーに読み込ませて最適解を得る」という流れになっていました。
 
+![](images/ponti3.drawio.png)
 
-実際のゲーム内の膨大なデータや制約条件を表現するためには、まだ手数が足りません。
-次のセクションで DMAX を実装するための準備運動として、pyomo の index, Var クラス, Param クラスを触ってみましょう。
+`dmax-practice.py` の実装では最適化問題の変数や制約条件の基本的な定義の仕方を確認しました。しかし、**実際のゲーム内の膨大なデータや制約条件を表現するためにはまだ手数が足りません。**
+次のセクションで DMAX を実装するための準備運動として、Pyomo の `index`, `Var クラス`, `Param クラス`を触ってみましょう。
+
+## 実装練習: インデックス、Param クラスの導入
 
 先程のセクションでは以下のように、2つの変数をそれぞれ別々のVar クラスのインスタンスとして定義していました。
 以下の Var クラスのインスタンスはそれぞれ単一の変数を表しています。
@@ -1433,9 +1457,9 @@ mdl.Y_use = Var(within=NonNegativeIntegers, initialize=0)
 ```
 
 実は Var クラスはインデックスを利用することにより複数の変数をまとめて定義することができます。
-上記の例では Var クラスの引数はすべて `within=...` のようなキーワード引数として指定されています。
+上記の例では Var クラスの引数はすべて `within=...` のような `=` を含むキーワード引数として指定されていました。
 インデックスは位置引数として指定する必要があるので、すべてのキーワード引数の前に指定してください。
-また、それぞれの変数にはインデックスをしていすることでアクセスできます。
+また、それぞれの変数にはインデックスを指定することでアクセスできます。
 
 ```py
 # 位置引数にインデックスを指定することで複数の変数をまとめて定義
@@ -1605,6 +1629,7 @@ mdl.pprint()
 ```
 
 次は、Var の場合と同様に Param をインデックスを利用して定義してみましょう。
+Var と同様に Param のインデックスも位置引数として、全てのキーワード引数の前に指定します。
 
 ```py
 # pyomo ライブラリをインポート
@@ -1639,6 +1664,8 @@ mdl.pprint()
 
 関数 `sum()` の内部の `mdl.p[i] * mdl.x[i] for i in range(0, 2)` の部分はリスト内包記法 (またはジェネレータ式) と呼ばれる書き方です。
 `i = 0, 1` のすべての場合について、 `mdl.p[i] * mdl.x[i]` という要素を持つ配列を生成しています。つまり以下の2つの式は同等です。
+リスト内包記法とインデックスを組み合わせると、大量のパラメータと変数をループ処理で生成できるようになるため非常に役立ちます。
+
 ```py
 # リスト内包記法 (ジェネレータ式)
 sum(mdl.p[i] * mdl.x[i] for i in range(0,2))
@@ -1647,13 +1674,11 @@ sum(mdl.p[i] * mdl.x[i] for i in range(0,2))
 sum((mdl.p[0] * mdl.x[0]) + (mdl.p[1] * mdl.x[1]))
 ```
 
-
 次は、Param を2次元配列で定義してみましょう。
 pyomo の2次元配列は `data_info[0][1]` でアクセスするような入れ子形式ではなく、`data_info[0, 1]` のようなタプルキーでアクセスする形式を利用します。一般に後者の形式のほうが高速にアクセスできるため最適化されたライブラリで利用されることが多いです。
 
 インデックスは1次元配列のときと同様に Param クラスの位置引数としてしています。2次元配列の場合は位置引数に2つのインデックスを指定します。
-
-3次元以上の高次元配列も同じ要領で定義できます。
+本記事では利用しませんが、3次元以上の高次元配列も同じ要領で定義できます。
 
 ```py
 # pyomo ライブラリをインポート
@@ -1716,54 +1741,53 @@ p : Size=6, Index=p_index, Domain=Integers, Default=0, Mutable=False
 
 ここまでで、インデックスと Var クラス、 Param クラスを利用して大量の変数やパラメータを定義&利用する方法を見てきました。
 最後に、前のセクションで定義した pyomo モデルをインデックスと Param クラスを利用して書き直してみましょう。
+インデックスとParamクラスを利用したコードを `dmax-practice-index.py` とします。
 
-前のセクションのコード
-```py
+サンプルコードのリポジトリでも `dmax-practice-index.py` の全体を確認できます。
+
+https://github.com/hotckrin/dmax-from-scratch-sample-code/blob/main/dmax-practice-index.py#
+
+インデックスや Param クラスを利用しないコード
+```py:dmax-practice.py
 from pyomo.environ import *
 
-if __name__ == '__main__':
-    # モデル定義
-    mdl = ConcreteModel(name="dmax-practice", doc="dmax-practice: ゼロから作るモンハン最適化シミュレータ")
+# モデル定義
+mdl = ConcreteModel(name="dmax-practice", doc="dmax-practice: ゼロから作るモンハン最適化シミュレータ")
 
-    # 変数定義
-    mdl.X_use = Var(within=NonNegativeIntegers, initialize=0)
-    mdl.Y_use = Var(within=NonNegativeIntegers, initialize=0)
+# 変数定義
+# X_use: 非負整数変数
+mdl.X_use = Var(within=NonNegativeIntegers, initialize=0)
 
-    # 制約条件定義
-    def constraint_1(mdl):
-        return 2 * mdl.X_use + 1 * mdl.Y_use >= 5
+# Y_use: 非負整数変数
+mdl.Y_use = Var(within=NonNegativeIntegers, initialize=0)
 
-    mdl.const_1 = Constraint(rule=constraint_1)
+# 制約条件定義
+# 制約1: 2 * X_use + 1 * Y_use >= 5
+def constraint_1(mdl):
+    return 2 * mdl.X_use + 1 * mdl.Y_use >= 5
 
-    def constraint_2(mdl):
-        return 1 * mdl.X_use + 2 * mdl.Y_use <= 4
+mdl.const_1 = Constraint(rule=constraint_1)
 
-    mdl.const_2 = Constraint(rule=constraint_2)
+# 制約2: 1 * X_use + 2 * Y_use <= 4
+def constraint_2(mdl):
+    return 1 * mdl.X_use + 2 * mdl.Y_use <= 4
 
-    # 目的関数定義
-    def objective_function(mdl):
-        return 50 + 50 * mdl.X_use + 40 * mdl.Y_use
+mdl.const_2 = Constraint(rule=constraint_2)
 
-    mdl.OBJ = Objective(rule=objective_function, sense=maximize)
+# 目的関数定義: 50 + 50 * X_use + 40 * Y_use を最大化
+def objective_function(mdl):
+    return 50 + 50 * mdl.X_use + 40 * mdl.Y_use
 
-    # 問題ファイルを出力
-    # symbolic_solver_labels を有効化して変数名等の情報を保持
-    mdl.write("dmax-practice-problem.nl", format="nl", io_options={'symbolic_solver_labels': True})
-    print("最適化問題のモデルをファイルを出力しました")
+mdl.OBJ = Objective(rule=objective_function, sense=maximize)
+
+# 問題ファイルを出力
+# symbolic_solver_labels を有効化して変数名等の情報を保持
+mdl.write("dmax-practice-problem.nl", format="nl", io_options={'symbolic_solver_labels': True})
+print("最適化問題のモデルをファイルを出力しました")
 ```
 
 インデックスと Param クラスを利用して書き直したコード
-```py
-# dmax-practice-index.py: 線形計画問題を解くための Pyomo コード (index 利用版)
-# 制約条件:
-# 0 <= X_use (ただし X_use は整数)
-# 0 <= Y_use (ただし Y_use は整数)
-# 2 * X_use + 1 * Y_use >= 5
-# 1 * X_use + 2 * Y_use <= 4
-#
-# 目的関数:
-# 50 * X_use + 40 * Y_use + 50 を最大化
-
+```py:dmax-practice-index.py
 from pyomo.environ import *
 
 # モデル定義
@@ -1816,23 +1840,24 @@ mdl.write("dmax-practice-index-problem.nl", format="nl", io_options={'symbolic_s
 print("最適化問題のモデルをファイルを出力しました")
 ```
 
-Param を導入したい理由は以下の2つです。
+ここで、「**変数である Var はともかく、Param については Param クラスを利用しなくてもモデルを定義できるのではないか？**」という疑問が浮かびます。
+これはその通りで、実際に `dmax-practice.py` では Param クラスを利用せずにモデルを定義していますし、パラメータ数が多い場合でも dict や list を利用すれば対応できます。
 
-1. パラメータがユーザの入力などにより動的に変わるケースに対応するため
-2. パラメータの数が膨大になったときにインデックスで処理できるようにするため
+しかし、Pyomo ではパラメータを定義するために Param クラスを利用するのがベストプラクティスになります。
+理由は Param クラスを利用してパラメータを Pyomo モデルとして管理することにより、**整合性のチェックが可能**になり、**デバッグやメンテンナンスが容易**になるからです。
+例えば、`mdl.pprint()` を利用すると Param クラスで登録した内容をモデルの一部として表示できますし、Param クラスのインデックスと `initialize=` のデータに不整合があればエラーが出力されます。
 
-実際には、Python の dict 等を利用すれば上記と似たことが実現できますが、パラメータを pyomo モデルとして管理することで、整合性のチェックが可能になり、デバッグやメンテンナンスが容易になります。そのためParam を使ってパラメータを管理するのが pyomo でのベストプラクティスになります。
-
+したがって、パラメータを定義する際にはまず Param クラスとして定義することを考えて下さい。
 
 
 ## モンハンワイルズのデータで最適化シミュを自作する
 
 次は、実際のモンハンワイルズのデータを利用して最適化シミュレータを作成していきます。
 
-この章で実装する最適化シミュの名前は dmax-mini と呼ぶことにします。
+この章で実装する最適化シミュの名前は `dmax-mini` と呼ぶことにします。
 
-dmax-mini では装備やスキルの種類の数は絞りますが、実際の最適化シミュ (DMAX) で考慮している処理はすべて実装していきます。
-なので、こちらの dmax-mini をベースに対応するデータを拡張していけば DMAX MHWilds と同じ最適化シミュを実装できるようになります。
+`dmax-mini` では装備やスキルの種類の数こそ絞りますが、実際の最適化シミュ (DMAX) で考慮している処理はすべて実装していきます。
+なので、こちらの `dmax-mini` をベースに対応するデータを拡張していけば [DMAX MHWilds](https://www.mhrspeedrun.com/dmax-mhwilds/) と同じ最適化シミュを実装できるようになります。
 
 ### 制約条件
 
@@ -1997,7 +2022,7 @@ dmax-mini では装備やスキルの種類の数は絞りますが、実際の�
 
 テーブルは以下のようになります。
 i は装備名を表しています。 `i = レダゼルトヘルムγ, レダゼルトメイルγ, ... 痛撃珠【３】` です。
-j は属性を表しています。 `j = 頭, 胴, 腰` です。<br>
+j は属性を表しています。 `j = 頭, 胴, 腰` です。
 
 ![](images/table8.drawio.png)
 
@@ -2026,10 +2051,14 @@ head <= 1
 (p['頭'][j] * q[j] for j in ['レダゼルトヘルムγ', 'レダゼルトメイルγ', ... '痛撃珠【３】']) <= 1
 ```
 
-それでは、上記のジェネレータ式の記法をベースにして制約条件(1)を実装してみましょう。<br>
+それでは、上記のジェネレータ式の記法をベースにして制約条件(1)を実装してみましょう。
 
-まずは実装全体を示し、後に各コードの説明をします。<br>
+まずは実装全体を示し、後に各コードの説明をします。
 以下のように `dmax-mini-1.py` というファイルに実装しました。実行方法は `$ uv run dmax-mini-1.py` です。
+
+サンプルコードのリポジトリでは以下から `dmax-mini-1.py` を確認できます。
+
+https://github.com/hotckrin/dmax-from-scratch-sample-code/blob/main/dmax-mini-1.py#
 
 ```py
 # dmax-mini-1.py: 制約条件(1) を実装
@@ -2134,10 +2163,10 @@ step1 の部分では `equip_all` という全装備のデータが保存され�
 
 |  python 変数名  |                                           用途                                           |
 | --------------- | ---------------------------------------------------------------------------------------- |
-| `equip_all`     | 全ての装備データが保存された変数<br>この入力データをベースに以下の3つのデータを準備する  |
+| `equip_all`     | 全ての装備データが保存された変数この入力データをベースに以下の3つのデータを準備する  |
 | `equip_names`   | 装備名のインデックス (表の縦軸)                                                          |
 | `attribute_set` | 装備の属性のインデックス (表の横軸)                                                      |
-| `eqinfo_matrix` | 装備データの2次元配列<br>`equip_names` と `attribute_set` で引いて装備データを取得できる |
+| `eqinfo_matrix` | 装備データの2次元配列`equip_names` と `attribute_set` で引いて装備データを取得できる |
 
 ![](images/table9.drawio.png)
 
@@ -2166,7 +2195,7 @@ mdl.q = Var(equip_names, within=NonNegativeIntegers, initialize=0)
 最後に以下の部分で、制約条件(1) をモデルに追加しています。
 > 制約条件(1): 各部位で使用できる装備の数は 1 以下
 
-クラス `Constraint` では第1引数にインデックスを指定することによって、インデックスのすべての要素に対して `rule=` に指定された制約式を定義することができます。<br>
+クラス `Constraint` では第1引数にインデックスを指定することによって、インデックスのすべての要素に対して `rule=` に指定された制約式を定義することができます。
 `rule=` に指定した関数は第2引数でインデックスの各要素を受け取ります。
 
 ```py
@@ -2204,7 +2233,9 @@ mdl.const_total_equipment_type_torso = Constraint(rule=const_total_equipment_typ
 それでは実際に実行してモデルの詳細を表示してみましょう。
 
 ```sh
-❯ uv run dmax-mini-1.py
+$ cd ~/dmax-from-scratch-sample-code/
+
+$ uv run dmax-mini-1.py
 model for solving damage optimization problem
 ... 省略
 ```
@@ -2289,8 +2320,8 @@ mdl.const_total_equipment_type = Constraint(single_equip_type_set, rule=const_to
 これはつまり、モデリングツールの時点で既に制約式の最適化が行われているということです。
 したがって、コード上でがんばって部位ごとのデータ集合を作成し、部位ごとに制約式の定義を分ける必要はないことがわかります。
 
-プログラミングにおける処理高速化の勘所として「素人が簡単に思いつくようなコード上の最適化や高速化はコンパイラや最適化ソルバーによって一瞬で解決されるため、小手先の最適化は誤差」というものがあります。
-なので私は、「コード上で簡単な変数削減などを行っても最適化ソルバーを通せば誤差レベルだろう」という直感がありました。
+プログラミングにおける高速化の勘所として「素人が簡単に思いつくようなコード上の最適化や高速化はコンパイラや最適化ソルバーによって一瞬で解決されるため、小手先の最適化は誤差かもしれない」というものがあります。
+なので私も、「コード上で簡単な変数削減などを行っても最適化ソルバーを通せば誤差レベルだろう」という直感がありました。
 しかし、実際には最適化ソルバーより前の段階で既にモデリングツールによって最適化が行われており驚きました。
 最適化シミュの高速化を試みるときには、`pprint()` メソッドによってモデルの詳細をぜひ確認したいですね。
 
@@ -2314,6 +2345,10 @@ mdl.const_total_equipment_type = Constraint(single_equip_type_set, rule=const_to
 
 まずは実装全体を示し、後に `dmax-mini-1.py` と `dmax-mini-2.py` の差分コードの説明をします。
 `dmax-mini-2.py` は以下です。実行方法は `$ uv run dmax-mini-2.py` です。
+
+サンプルコードのリポジトリでは以下から `dmax-mini-2.py` を確認できます。
+
+https://github.com/hotckrin/dmax-from-scratch-sample-code/blob/main/dmax-mini-2.py#
 
 ```py
 # dmax-mini-2.py : 制約条件(1)-(2) を実装
@@ -2520,11 +2555,13 @@ mdl.write(output_filename, format="nl", io_options={'symbolic_solver_labels': Tr
 
 それでは `dmax-mini-2.py` を実行して問題ファイルを出力し、SCIP ソルバーに最適化させてみましょう。
 
-`dmax-mini-2.py` を実行するとまず、`mdl.pprint()` によってモデル詳細が出力されます。<br>
-出力内容から、パラメータ `mdl.r`、目的関数 `mdl.OBJ`、そして制約条件 `mdl.const_skill_point` が追加されていることが確認できます。<br>
+`dmax-mini-2.py` を実行するとまず、`mdl.pprint()` によってモデル詳細が出力されます。
+出力内容から、パラメータ `mdl.r`、目的関数 `mdl.OBJ`、そして制約条件 `mdl.const_skill_point` が追加されていることが確認できます。
 `dmax-mini-1.py` のときと同様に `mdl.const_skill_point` の制約式においても関係のある装備だけが抽出されていることがわかりますね。
 
 ```sh
+$ cd ~/dmax-from-scratch-sample-code/
+
 $ uv run dmax-mini-2.py
 model for solving damage optimization problem
 ...省略
@@ -2622,7 +2659,7 @@ SCIP Status        : problem is solved [infeasible]
 ...省略
 ```
 
-`dmax-mini-2.py` の実装状況は以下の通りです。<br>
+`dmax-mini-2.py` の実装状況は以下の通りです。
 `dmax-mini-2.py` では制約条件(1), (2)に加えて目的関数を追加したことにより、簡易的なスキルシミュレータが完成しました。
 
 | 実装完了 |  制約条件   |                                   制約内容                                   |
@@ -2636,8 +2673,8 @@ SCIP Status        : problem is solved [infeasible]
 
 ### dmax-mini-3.py
 
-`dmax-mini-2.py` では装飾品を考慮していません。<br>
-`dmax-mini-3.py` では制約条件(3)を実装して装飾品を扱えるようにしましょう。ここまで実装すればスキルシミュレーターの機能は完成です。
+`dmax-mini-2.py` では装飾品を考慮していません。
+`dmax-mini-3.py` では制約条件(3)を実装して装飾品を扱えるようにしましょう。ここまで実装すれば**スキルシミュレーター**が完成します。
 
 装飾品の条件の実装自体は少ないですが、制約式に落とし込む部分で一捻り必要です。
 まずは制約条件(3)の定式化から説明します。
@@ -2646,7 +2683,7 @@ SCIP Status        : problem is solved [infeasible]
 
 制約条件(3)をいきなり式に落とし込むのは難しいです。
 難しい理由は、**よりレベルの高いスロットにも装着できる** という性質があるからです。
-例えば、Lv2装飾品をLv2スロに装着できるだけでなく Lv3スロに装着できるという性質があります。
+例えば、Lv2装飾品はLv2スロに装着できるだけでなくLv3スロにも装着できるという性質があります。
 なのでまずは、条件を簡単にするためにこの性質がない場合を考えてみましょう。
 
 つまり、
@@ -2658,18 +2695,22 @@ SCIP Status        : problem is solved [infeasible]
 例えばLv1の場合、**装備しているLv1装飾品の数が、現在の装備中の防具についているLv1スロットの数以下に収まれば良い** という条件になっています。
 使用できるスロットはLv1スロットの枠だけであり、仮にLv2スロットやLv3スロットの枠が余っていてもLv1装飾品は装着できない条件であることがわかります。
 
-$$
+```math
+\begin{array}{cc}
 (\text{装備中のLv1スロットの数}) \geq (\text{装備中のLv1装飾品の数}) \\
 (\text{装備中のLv2スロットの数}) \geq (\text{装備中のLv2装飾品の数}) \\
-$$
+\end{array}
+```
 
 横幅を短くするため `(装備中のLv1スロットの数)` を省略して `(Lv1スロ数)` と表記することにします。
 `(装備中のLv2装飾品の数)` も同様に `(Lv2装飾品数)` と表記することにします。
 
-$$
+```math
+\begin{array}{cc}
 (\text{Lv1スロ数}) \geq (\text{Lv1装飾品数}) \\
 (\text{Lv2スロ数}) \geq (\text{Lv2装飾品数}) \\
-$$
+\end{array}
+```
 
 制約条件(3A)を図示すると以下のようになります。Lv2スロット群とLv1スロット群の間には壁があり、Lv2スロットの領域とLv1スロットの領域が別れている状態です。
 `装着パターン1` のように、Lv2装飾品とLv1装飾品はそれぞれ左右の両端から同じレベルのスロット枠を消費していくと考えます。
@@ -2692,9 +2733,9 @@ Lv2装飾品はLv1スロットの領域に侵食してLv1スロットに装着�
 
 制約条件(3B)を数式と図で表すと以下のようになります。
 
-$$
+```math
 (\text{Lv2スロ数}) + (\text{Lv1スロ数}) \geq (\text{Lv2装飾品数}) + (\text{Lv1装飾品数})
-$$
+```
 
 制約条件(3A)にあったLv2スロット領域とLv1スロット領域を分断する壁がなくなりました。
 Lv2装飾品はLv1スロットの領域に侵食してLv1スロットにも装着できますし、逆も同様に侵食できます。
@@ -2707,20 +2748,20 @@ Lv2装飾品はLv1スロットの領域に侵食してLv1スロットにも装�
 
 Lv2装飾品の侵食範囲の限界は装備中のLv2スロットの数です。したがって以下のような式を追加する必要があります。
 
-$$
+```math
 (\text{Lv2スロ数}) \geq (\text{Lv2装飾品数})
-$$
+```
 
 ![](images/deco3.drawio.png)
 
 制約条件(3B) と合わせて考えると以下のようになります。
 
-$$
+```math
 \begin{array}{lcl}
 (\text{Lv2スロ数}) + (\text{Lv1スロ数}) & \geq & (\text{Lv2装飾品数}) + (\text{Lv1装飾品数}) \\
 (\text{Lv2スロ数})                      & \geq & (\text{Lv2装飾品数})
 \end{array}
-$$
+```
 
 次はLv3装飾品も考慮に入れましょう。
 
@@ -2728,11 +2769,11 @@ $$
 
 についてLv3も考慮に入れた式は以下のようになります。
 
-$$
+```math
 \begin{array}{lcl}
 (\text{Lv3スロ数}) + (\text{Lv2スロ数}) + (\text{Lv1スロ数}) & \geq & (\text{Lv3装飾品数}) + (\text{Lv2装飾品数}) + (\text{Lv1装飾品数})
 \end{array}
-$$
+```
 
 ![](images/deco4.drawio.png)
 
@@ -2740,12 +2781,12 @@ $$
 まず、**Lv3装飾品がLv2以下のスロット領域に侵食する方向** を禁止したいです。Lv3装飾品の侵食範囲の限界はLv3スロットの数です。
 したがって以下のようになります。
 
-$$
+```math
 \begin{array}{lcl}
 (\text{Lv3スロ数}) + (\text{Lv2スロ数}) + (\text{Lv1スロ数}) & \geq & (\text{Lv3装飾品数}) + (\text{Lv2装飾品数}) + (\text{Lv1装飾品数}) \\
 (\text{Lv3スロ数})                                           & \geq & (\text{Lv3装飾品数})
 \end{array}
-$$
+```
 
 ![](images/deco5.drawio.png)
 
@@ -2753,13 +2794,13 @@ $$
 Lv3装飾品とLv2装飾品の侵食範囲の限界はLv3スロットとLv2スロットの数の合計なので左辺は `(Lv3スロ数}) + (Lv2スロ数}) >=` となります。
 したがって以下のようになります。
 
-$$
+```math
 \begin{array}{lcl}
 (\text{Lv3スロ数}) + (\text{Lv2スロ数}) + (\text{Lv1スロ数}) & \geq & (\text{Lv3装飾品数}) + (\text{Lv2装飾品数}) + (\text{Lv1装飾品数}) \\
 (\text{Lv3スロ数}) + (\text{Lv2スロ数})                      & \geq & (\text{Lv3装飾品数}) + (\text{Lv2装飾品数}) \\
 (\text{Lv3スロ数})                                           & \geq & (\text{Lv3装飾品数})
 \end{array}
-$$
+```
 
 ![](images/deco6.drawio.png)
 
@@ -2767,24 +2808,24 @@ $$
 
 > 制約条件(3): 装飾品はスロットレベル以上の大きさのスロットにしか装着できない
 
-$$
+```math
 \begin{array}{lcl}
 (\text{Lv1以上のスロ数}) & \geq & (\text{Lv1以上の装飾品数}) \\
 (\text{Lv2以上のスロ数}) & \geq & (\text{Lv2以上の装飾品数}) \\
 (\text{Lv3以上のスロ数}) & \geq & (\text{Lv3以上の装飾品数})
 \end{array}
-$$
+```
 
 実装を楽にするために、以下のように移項しておきましょう。
 右辺が0になりループ処理が左辺のみになります。
 
-$$
+```math
 \begin{array}{lcl}
 (\text{Lv1以上のスロ数}) - (\text{Lv1以上の装飾品数}) & \geq & 0 \\
 (\text{Lv2以上のスロ数}) - (\text{Lv2以上の装飾品数}) & \geq & 0 \\
 (\text{Lv3以上のスロ数}) - (\text{Lv3以上の装飾品数}) & \geq & 0
 \end{array}
-$$
+```
 
 `Lv1以上のスロ数` は **ある解 $q_{i}$ において使用する装備に付属しているLv1以上の装飾品スロット数の合計** を示しています。
 `Lv1以上の装飾品数` も同様に、**ある解 $q_{i}$ において使用するLv1以上の装飾品の合計数** を示しています。
@@ -2811,13 +2852,13 @@ $$
 Lv1の装飾品の場合は、Lv1以上のスロットの余り数を消費すると考え、`(Lv123RemainSlotNum) = -2` となります。
 このように考えると、最終的に以下のような式にまとめられます。
 
-$$
+```math
 \begin{array}{lcl}
 (\text{装備中の Lv123RemainSlotNum の合計}) & \geq & 0 \\
 (\text{装備中の Lv23RemainSlotNum の合計})  & \geq & 0 \\
 (\text{装備中の Lv3RemainSlotNum の合計})   & \geq & 0
 \end{array}
-$$
+```
 
 それでは立式した制約条件(3)を `dmax-mini-3.py` に実装していきましょう。
 
@@ -2825,7 +2866,7 @@ $$
 モンハンワイルズには防具装飾品と武器装飾品がありますが、どちらも処理は同じなので今回は防具装飾品のみ実装しましょう。
 防具装飾品の `type` は `decoArmor` としています。
 
-```diff py
+```diff_python
 # 全ての装備データ (防具、護石、装飾品)
 equip_all = [
     ...省略
@@ -2845,7 +2886,7 @@ equip_all = [
 
 次にスロット用の新規属性 `Lv123RemainSlotNum`, `Lv23RemainSlotNum`, `Lv3RemainSlotNum` を実装します。
 
-```diff py
+```diff_python
 +# 装飾品スロットの属性
 +remain_slot_set = {'Lv123RemainSlotNum', 'Lv23RemainSlotNum', 'Lv3RemainSlotNum'}
 
@@ -2859,7 +2900,7 @@ equip_all = [
 属性のインデックスが準備できました。
 次は装飾品のスロットレベルデータを利用して `Lv123RemainSlotNum` 等の属性に対応するデータを作成し、装備データの2次元配列 `eqinfo_matrix` に登録します。
 
-```diff py
+```diff_python
 # 装備データの2次元配列を作成 ( p(i, j) の定義に利用 )
 eqinfo_matrix = {}
 for equip in equip_all:
@@ -2892,7 +2933,7 @@ C言語などにおける `(a > b) ? a : b` を Python で書くと `a if (a > b
 次は装備の余りスロット数属性を追加します。
 装備には複数のスロットがあるため、各スロットを全てチェックして `Lv123RemainSlotNum` などの余りスロット数属性のデータを追加していきます。
 
-```diff py
+```diff_python
 # 装備データの2次元配列を作成 ( p(i, j) の定義に利用 )
 eqinfo_matrix = {}
 for equip in equip_all:
@@ -2931,8 +2972,11 @@ def const_remain_slot_num_armor(mdl, slotlevel):
 mdl.const_remain_slot_num_armor = Constraint(remain_slot_set, rule=const_remain_slot_num_armor)
 ```
 
-以上で `dmax-mini-3.py` の実装は終了です。
-`dmax-mini-3.py` のファイル全体を以下に示します。
+以上で `dmax-mini-3.py` の実装は終了です。`dmax-mini-3.py` のファイル全体を以下に示します。
+サンプルコードのリポジトリでは以下から `dmax-mini-3.py` を確認できます。
+
+https://github.com/hotckrin/dmax-from-scratch-sample-code/blob/main/dmax-mini-3.py#
+
 
 ```py:dmax-mini-3.py
 # dmax-mini-3.py: 制約条件(1)-(3) を実装
@@ -3129,7 +3173,7 @@ SCIP> optimize
 SCIP> display solution
 ```
 
-`dmax-mini-3.py` の実装状況は以下の通りです。<br>
+`dmax-mini-3.py` の実装状況は以下の通りです。
 
 | 実装完了 |  制約条件   |                                   制約内容                                   |
 | -------- | ----------- | ---------------------------------------------------------------------------- |
@@ -3151,7 +3195,7 @@ SCIP> display solution
 
 :::note info
 - こちらは推定されたダメージ計算式です。できるだけゲーム内の計算式に近づけてはありますが、ゲーム内の計算式と一致しない可能性はあります。
-- 説明のために登場スキルを絞った計算式になっています。DMAX MHWilds で利用している完全な形のダメージ計算式が知りたい場合は `dmax.py` を参照してください。
+- 説明のために登場スキルを絞った計算式になっています。DMAX MHWilds で利用している完全な形のダメージ計算式が知りたい場合は [dmax.py](https://github.com/hotckrin/dmax-from-scratch-sample-code/blob/main/dmax.py) を参照してください。
 :::
 
 
@@ -3181,8 +3225,8 @@ SCIP> display solution
 
 この効果を表現するため以下のように定義します。
 
-> `(巧撃Lv1が発動)` の値は 0 か 1 のいずれかを取る<br>
-> `(巧撃Lv2が発動)` の値は 0 か 1 のいずれかを取る<br>
+> `(巧撃Lv1が発動)` の値は 0 か 1 のいずれかを取る
+> `(巧撃Lv2が発動)` の値は 0 か 1 のいずれかを取る
 > ... Lv3以降も同様
 
 このようにスキルレベルごとに発動の有無を 0 か 1 で表現すると決めておくと、以下のように1つの計算式で `巧撃` スキルの効果を表現できます。
@@ -3373,7 +3417,7 @@ mdl.const_skill_bridge = Constraint(damage_skills, rule=const_skill_bridge)
 会心率の制約式2: (会心率) <= (武器の会心率) + (スキルの会心率)
 ```
 
-会心率の制約式1 は制約条件(6)ですね。<br>
+会心率の制約式1 は制約条件(6)ですね。
 会心率の制約式2 はダメージ計算式の一部です。
 
 (会心率の制約式2 は制約条件(7)としても良かったのですが、制約条件というよりダメージ計算式の一部だろうと思い、制約条件のリストから外しました。)
@@ -3413,7 +3457,7 @@ mdl.const_max_affinity_2 = Constraint(rule=const_max_affinity_2)
 会心補正は、会心が発動した時に 1.25 倍になり、発動しなかった場合は 1.0 倍です。
 発動率は `mdl.afr` なので目的関数は以下のようになります。
 
-```diff py
+```diff_python
 # 目的関数: ダメージ計算式を最大化
 def objective(mdl):
     return (((cp['武器倍率'] \
@@ -3432,6 +3476,10 @@ def objective(mdl):
 ```
 
 `dmax-mini-4.py` のソースコード全体は以下のようになります。
+サンプルコードのリポジトリでは以下から `dmax-mini-4.py` を確認できます。
+
+https://github.com/hotckrin/dmax-from-scratch-sample-code/blob/main/dmax-mini-4.py#
+
 
 ```py:dmax-mini-4.py
 # dmax-mini-3.py: 制約条件(1)-(3) を実装
