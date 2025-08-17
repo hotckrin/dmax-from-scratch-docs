@@ -7,7 +7,7 @@ tags:
   - 非線形整数計画法
   - pyomo
 private: true
-updated_at: '2025-08-16T23:04:55+09:00'
+updated_at: '2025-08-17T19:04:32+09:00'
 id: 962a0e518f99ae30b54b
 organization_url_name: null
 slide: false
@@ -240,7 +240,7 @@ A_use + B_use <= 1
 よって (条件2) を数式で表すと以下のようになります。
 
 ```
-2 * X_use + 1 * Y_use => 5
+2 * X_use + 1 * Y_use >= 5
 ```
 
 同様に考えて、 (条件3)
@@ -290,7 +290,7 @@ dmg = {(30) + 10 * Y_use + 30 * X_use}
 制約条件:
 0 <= X_use (ただし X_use は整数)
 0 <= Y_use (ただし Y_use は整数)
-2 * X_use + 1 * Y_use => 5
+2 * X_use + 1 * Y_use >= 5
 1 * X_use + 2 * Y_use <= 4
 
 目的関数:
@@ -406,7 +406,7 @@ dmg = {(30) + 10 * Y_use + 30 * X_use}
 制約条件:
 0 <= X_use (ただし X_use は整数)
 0 <= Y_use (ただし Y_use は整数)
-2 * X_use + 1 * Y_use => 5
+2 * X_use + 1 * Y_use >= 5
 1 * X_use + 2 * Y_use <= 4
 
 目的関数:
@@ -1061,7 +1061,7 @@ Pyomo では変数のようなモデルを定義する要素を、モデルイ�
 
 ```
 制約条件:
-2 * X_use + 1 * Y_use => 5
+2 * X_use + 1 * Y_use >= 5
 1 * X_use + 2 * Y_use <= 4
 ```
 
@@ -1493,7 +1493,7 @@ x : Size=2, Index=x_index
 先程の問題の例で言うと、制約条件や目的関数に登場する `2 * X_use` の `2` のような定数部分をパラメータで表現することを考えます。
 
 ```
-2 * X_use + 1 * Y_use => 5
+2 * X_use + 1 * Y_use >= 5
 ```
 
 前のセクションでは、上記の制約条件を以下のように表現していました。
@@ -2033,7 +2033,7 @@ for equip in equip_all:
     eqinfo_matrix[equip['name'], equip['type']] = 1
 
     # 装備についているスキルの属性データを追加
-    # 例: eqinfomatrix['反攻の護石Ⅲ', '巧撃'] = 3
+    # 例: eqinfo_matrix['反攻の護石Ⅲ', '巧撃'] = 3
     for skill in equip['skills']:
         eqinfo_matrix[equip['name'], skill] = equip['skills'][skill]
 
@@ -2316,7 +2316,7 @@ for equip in equip_all:
     eqinfo_matrix[equip['name'], equip['type']] = 1
 
     # 装備についているスキルの属性データを追加
-    # 例: eqinfomatrix['反攻の護石Ⅲ', '巧撃'] = 3
+    # 例: eqinfo_matrix['反攻の護石Ⅲ', '巧撃'] = 3
     for skill in equip['skills']:
         eqinfo_matrix[equip['name'], skill] = equip['skills'][skill]
 
@@ -2962,7 +2962,7 @@ for equip in equip_all:
     eqinfo_matrix[equip['name'], equip['type']] = 1
 
     # 装備についているスキルの属性データを追加
-    # 例: eqinfomatrix['反攻の護石Ⅲ', '巧撃'] = 3
+    # 例: eqinfo_matrix['反攻の護石Ⅲ', '巧撃'] = 3
     for skill in equip['skills']:
         eqinfo_matrix[equip['name'], skill] = equip['skills'][skill]
 
@@ -3354,7 +3354,7 @@ def const_max_affinity_2(mdl):
                 + (5*mdl.x['弱点特効',1] + 10*mdl.x['弱点特効',2] + 15*mdl.x['弱点特効',3] + 20*mdl.x['弱点特効',4] + 30*mdl.x['弱点特効',5]) \
                 + (10*mdl.x['力の解放',1] + 20*mdl.x['力の解放',2] + 30*mdl.x['力の解放',3] + 40*mdl.x['力の解放',4] + 50*mdl.x['力の解放',5]) \
                 + (10*mdl.x['渾身',1] + 20*mdl.x['渾身',2] + 30*mdl.x['渾身',3]) \
-                + (15*mdl.x['海竜の渦雷',2] + 15*mdl.x['海竜の渦雷',3] * 15*mdl.x['海竜の渦雷',4] + 15*mdl.x['海竜の渦雷',5]) \
+                + (15*mdl.x['海竜の渦雷',2] + 15*mdl.x['海竜の渦雷',3] + 15*mdl.x['海竜の渦雷',4] + 15*mdl.x['海竜の渦雷',5]) \
                 )
 
 mdl.const_max_affinity_2 = Constraint(rule=const_max_affinity_2)
@@ -3391,7 +3391,7 @@ https://github.com/hotckrin/dmax-from-scratch-sample-code/blob/main/dmax-mini-4.
 
 
 ```py:dmax-mini-4.py
-# dmax-mini-3.py: 制約条件(1)-(3) を実装
+# dmax-mini-4.py: 制約条件(1)-(4) を実装
 from pyomo.environ import *
 
 # =============================================================================
@@ -3438,7 +3438,7 @@ equip_names = set()
 single_equip_type_set = {'head', 'torso', 'arms', 'waist', 'legs', 'charm'}
 
 # 装飾品スロットの属性
-remain_slot_set = {'Lv1RemainSlotNum', 'Lv2RemainSlotNum', 'Lv3RemainSlotNum'}
+remain_slot_set = {'Lv123RemainSlotNum', 'Lv23RemainSlotNum', 'Lv3RemainSlotNum'}
 
 # 装備の全属性の集合 (2次元配列 p(i, j) の j の集合)
 attribute_set = set()
@@ -3464,7 +3464,7 @@ for equip in equip_all:
     eqinfo_matrix[equip['name'], equip['type']] = 1
 
     # 装備についているスキルの属性データを追加
-    # 例: eqinfomatrix['反攻の護石Ⅲ', '巧撃'] = 3
+    # 例: eqinfo_matrix['反攻の護石Ⅲ', '巧撃'] = 3
     for skill in equip['skills']:
         eqinfo_matrix[equip['name'], skill] = equip['skills'][skill]
 
@@ -3473,14 +3473,14 @@ for equip in equip_all:
 
     # 装備の残りスロット属性を追加
     if equip['type'] in single_equip_type_set:
-        eqinfo_matrix[equip['name'], 'Lv1RemainSlotNum'] = len(list(filter(lambda n: n >= 1, equip['slots'])))
-        eqinfo_matrix[equip['name'], 'Lv2RemainSlotNum'] = len(list(filter(lambda n: n >= 2, equip['slots'])))
+        eqinfo_matrix[equip['name'], 'Lv123RemainSlotNum'] = len(list(filter(lambda n: n >= 1, equip['slots'])))
+        eqinfo_matrix[equip['name'], 'Lv23RemainSlotNum'] = len(list(filter(lambda n: n >= 2, equip['slots'])))
         eqinfo_matrix[equip['name'], 'Lv3RemainSlotNum'] = len(list(filter(lambda n: n >= 3, equip['slots'])))
 
     # 装飾品の残りスロット属性を追加
     if equip['type'] == 'decoArmor':
-        eqinfo_matrix[equip['name'], 'Lv1RemainSlotNum'] =  -1 if equip['size'] >= 1 else 0
-        eqinfo_matrix[equip['name'], 'Lv2RemainSlotNum'] =  -1 if equip['size'] >= 2 else 0
+        eqinfo_matrix[equip['name'], 'Lv123RemainSlotNum'] =  -1 if equip['size'] >= 1 else 0
+        eqinfo_matrix[equip['name'], 'Lv23RemainSlotNum'] =  -1 if equip['size'] >= 2 else 0
         eqinfo_matrix[equip['name'], 'Lv3RemainSlotNum'] =  -1 if equip['size'] >= 3 else 0
 
 # ユーザが指定する必須スキルレベルのデータ
@@ -3610,7 +3610,7 @@ def const_max_affinity_2(mdl):
                 + (5*mdl.x['弱点特効',1] + 10*mdl.x['弱点特効',2] + 15*mdl.x['弱点特効',3] + 20*mdl.x['弱点特効',4] + 30*mdl.x['弱点特効',5]) \
                 + (10*mdl.x['力の解放',1] + 20*mdl.x['力の解放',2] + 30*mdl.x['力の解放',3] + 40*mdl.x['力の解放',4] + 50*mdl.x['力の解放',5]) \
                 + (10*mdl.x['渾身',1] + 20*mdl.x['渾身',2] + 30*mdl.x['渾身',3]) \
-                + (15*mdl.x['海竜の渦雷',2] + 15*mdl.x['海竜の渦雷',3] * 15*mdl.x['海竜の渦雷',4] + 15*mdl.x['海竜の渦雷',5]) \
+                + (15*mdl.x['海竜の渦雷',2] + 15*mdl.x['海竜の渦雷',3] + 15*mdl.x['海竜の渦雷',4] + 15*mdl.x['海竜の渦雷',5]) \
                 )
 
 mdl.const_max_affinity_2 = Constraint(rule=const_max_affinity_2)
@@ -3849,7 +3849,7 @@ https://github.com/EriN-MH/iceborne-safi-sim
 
 自作する場合は環境構築の部分だけでも早めに済ませてしまうことをオススメします。環境構築の手順書というものには消費期限があり、時間が経つと同じ手順で環境を再現するのがどんどん難しくなっていってしまうからです。
 
-本記事とサンプルコードのプログラムは断りなく利用してかまいせんが、使用報告があるとうれしいので差し支えなければご一報ください。
+本記事とサンプルコードのプログラムは断りなく利用してかまいませんが、使用報告があるとうれしいので差し支えなければご一報ください。
 
 わからない点があればぜひ質問してください。DMでもOKです。フォロー返せていなかったらその旨ご連絡下さい。
 また、もし記事中にミス等があればご連絡いただけると助かります。
