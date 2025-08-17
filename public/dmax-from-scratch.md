@@ -7,7 +7,7 @@ tags:
   - 非線形整数計画法
   - pyomo
 private: false
-updated_at: '2025-08-17T20:31:40+09:00'
+updated_at: '2025-08-17T20:32:25+09:00'
 id: 962a0e518f99ae30b54b
 organization_url_name: null
 slide: false
@@ -1949,7 +1949,7 @@ print("最適化問題のモデルをファイルを出力しました")
 - i は装備名を表しています。 `i = レダゼルトヘルムγ, レダゼルトメイルγ, ... 痛撃珠【３】` です。
 - j は属性を表しています。 `j = 頭, 胴, 腰` です。
 
-![table8.drawio.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/625ccfc7-bec7-40b4-a185-fb758d817175.png)
+![table8.drawio.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/4166671/2fbde245-fb6c-49e6-a7fd-6b18e0dd09fb.png)
 
 2次元配列のパラメータ `p[i][j]` と解の変数 `q[i]` を利用すると制約式 (1) は以下のように書けます。
 
