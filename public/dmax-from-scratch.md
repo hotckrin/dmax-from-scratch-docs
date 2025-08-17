@@ -6,8 +6,8 @@ tags:
   - モンハン
   - 非線形整数計画法
   - pyomo
-private: true
-updated_at: '2025-08-17T20:11:11+09:00'
+private: false
+updated_at: '2025-08-17T20:31:40+09:00'
 id: 962a0e518f99ae30b54b
 organization_url_name: null
 slide: false
@@ -20,11 +20,15 @@ ignorePublish: false
 
 この記事を読むと、**ゲーム中でダメージが最大になる装備構成を自動で見つけてくれる**シミュレーターを実装することができます。シミュの動作イメージを知りたい方は以下のサイトを開いて右下の `最適化ボタン` を押してみてください。
 
+[DMAX MHWilds](https://www.mhrspeedrun.com/dmax-mhwilds/)
+
 https://www.mhrspeedrun.com/dmax-mhwilds/
 
 こちらのサイトは弓専用の自動ダメージ最大化シミュレーターですが、本記事を読むと弓に限らず**別武器のシミュ**も実装できますし、より馴染みのある**スキルシミュレーター**も実装可能です。**記事の途中でスキルシミュも実装します。**
 
 結論の実装を先に読みたい方は以下のリポジトリの `dmax.py` というファイルを参照してください。この500行程度のコードがシミュの核心部分です。
+
+[github/dmax-from-scratch-sample-code](https://github.com/hotckrin/dmax-from-scratch-sample-code/blob/main/dmax.py#)
 
 https://github.com/hotckrin/dmax-from-scratch-sample-code/blob/main/dmax.py#
 
