@@ -1171,25 +1171,32 @@ mdl.OBJ = Objective(rule=objective_function, sense=maximize)
 ```py:dmax-practice.py
 from pyomo.environ import *
 
+# 線形計画問題を解くためのPyomoモデルを定義します
+
 # モデル定義
 mdl = ConcreteModel(name="dmax-practice", doc="dmax-practice: ゼロから作るモンハン最適化シミュレータ")
 
 # 変数定義
+# X_use: 非負整数変数
 mdl.X_use = Var(within=NonNegativeIntegers, initialize=0)
+
+# Y_use: 非負整数変数
 mdl.Y_use = Var(within=NonNegativeIntegers, initialize=0)
 
 # 制約条件定義
+# 制約1: 2 * X_use + 1 * Y_use >= 5
 def constraint_1(mdl):
     return 2 * mdl.X_use + 1 * mdl.Y_use >= 5
 
 mdl.const_1 = Constraint(rule=constraint_1)
 
+# 制約2: 1 * X_use + 2 * Y_use <= 4
 def constraint_2(mdl):
     return 1 * mdl.X_use + 2 * mdl.Y_use <= 4
 
 mdl.const_2 = Constraint(rule=constraint_2)
 
-# 目的関数定義
+# 目的関数定義: 50 + 50 * X_use + 40 * Y_use を最大化
 def objective_function(mdl):
     return 50 + 50 * mdl.X_use + 40 * mdl.Y_use
 
@@ -1199,6 +1206,7 @@ mdl.OBJ = Objective(rule=objective_function, sense=maximize)
 # symbolic_solver_labels を有効化して変数名等の情報を保持
 mdl.write("dmax-practice-problem.nl", format="nl", io_options={'symbolic_solver_labels': True})
 print("最適化問題のモデルをファイルを出力しました")
+
 ```
 
 以下のように、モデルインスタンスの `write` メソッド `mdl.write()` を利用することで、定義したモデルをファイルに出力することができます。
@@ -1689,7 +1697,7 @@ https://github.com/hotckrin/dmax-from-scratch-sample-code/blob/main/dmax-practic
 from pyomo.environ import *
 
 # モデル定義
-mdl = ConcreteModel(name="dmax-practice", doc="dmax-practice-index: ゼロから作るモンハン最適化シミュレータ")
+mdl = ConcreteModel(name="dmax-practice", doc="dmax-practice: ゼロから作るモンハン最適化シミュレータ")
 
 # 変数定義
 # X_use: 非負整数変数
@@ -1721,6 +1729,7 @@ mdl.OBJ = Objective(rule=objective_function, sense=maximize)
 # symbolic_solver_labels を有効化して変数名等の情報を保持
 mdl.write("dmax-practice-problem.nl", format="nl", io_options={'symbolic_solver_labels': True})
 print("最適化問題のモデルをファイルを出力しました")
+
 ```
 
 インデックスと `Param` クラスを利用して書き直したコード
@@ -1728,7 +1737,7 @@ print("最適化問題のモデルをファイルを出力しました")
 from pyomo.environ import *
 
 # モデル定義
-mdl = ConcreteModel(name="dmax-practice", doc="dmax-practice-index: ゼロから作るモンハン最適化シミュレータ")
+mdl = ConcreteModel(name="dmax-practice-index", doc="dmax-practice-index: ゼロから作るモンハン最適化シミュレータ")
 
 # 変数定義
 mdl.x = Var([0, 1], within=NonNegativeIntegers, initialize=0)
@@ -1975,9 +1984,8 @@ https://github.com/hotckrin/dmax-from-scratch-sample-code/blob/main/dmax-mini-1.
 from pyomo.environ import *
 
 # =============================================================================
-# step1. 入力データ読み込み: 装備データ２次元配列作成、配列のインデックス作成
+# step1. 入力データ読み込み: 装備データの２次元配列作成、配列のインデックス作成
 # =============================================================================
-
 
 # 全ての装備データ (防具、護石)
 equip_all = [
@@ -2025,7 +2033,7 @@ for equip in equip_all:
         attribute_set.add(skill)
         skill_set.add(skill)
 
-# 装備データ2次元配列を作成 ( p(i, j) の定義に利用 )
+# 装備データの2次元配列を作成 ( p(i, j) の定義に利用 )
 eqinfo_matrix = {}
 for equip in equip_all:
     # 装備タイプの属性データを追加
@@ -2038,20 +2046,20 @@ for equip in equip_all:
         eqinfo_matrix[equip['name'], skill] = equip['skills'][skill]
 
     # 装備の防御力を追加
-    eqinfo_matrix[equip['name'], 'deffence'] = equip['deffence']
+    eqinfo_matrix[equip['name'], 'deffence'] = equip['deffence'] if 'deffence' in equip else 0
 
 
 # =============================================================================
 # step2. モデルの定義: パラメータ、変数、制約条件の追加
 # =============================================================================
 
-# モデル定義 空のモデルを作成
+# モデル定義: 空のモデルを作成
 mdl = ConcreteModel(name="dmax model", doc="model for solving damage optimization problem")
 
-# 装備データ２次元配列をパラメータとしてモデルに追加
+# パラメータ定義: 装備データの2次元配列パラメータ
 mdl.p = Param(equip_names, attribute_set, default=0, initialize=eqinfo_matrix, within=Integers)
 
-# 装備を何個使うかを表す変数をモデルに追加
+# 変数定義: 各装備を何個使うかを表す変数
 mdl.q = Var(equip_names, within=NonNegativeIntegers, initialize=0)
 
 # 制約条件(1): 各部位で使用できる装備の数は 1 以下
@@ -2067,6 +2075,7 @@ mdl.const_total_equipment_type = Constraint(single_equip_type_set, rule=const_to
 
 # モデルの詳細を表示
 print(mdl.pprint())
+
 ```
 
 step1 の部分では `equip_all` という全装備のデータが保存された変数をベースに、3つのデータを準備しています。
@@ -2263,6 +2272,7 @@ from pyomo.environ import *
 # step1. 入力データ読み込み: 装備データの２次元配列作成、配列のインデックス作成
 # =============================================================================
 
+# 全ての装備データ (防具、護石)
 equip_all = [
     {"type": "head",  "name": "レダゼルトヘルムγ",   "deffence": 68, "slots": [3, 0, 0], "skills": {"煌雷竜の力": 1, "ヌシの魂": 1, "弱点特効": 1, "渾身": 1, "スタミナ急速回復": 1}},
     {"type": "torso", "name": "レダゼルトメイルγ",   "deffence": 68, "slots": [1, 0, 0], "skills": {"煌雷竜の力": 1, "ヌシの魂": 1, "力の解放": 3}},
@@ -2351,13 +2361,13 @@ required_skills = {
 # step2. モデルの定義: パラメータ、変数、制約条件、目的関数の追加
 # =============================================================================
 
-# モデル定義 空のモデルを作成
+# モデル定義: 空のモデルを作成
 mdl = ConcreteModel(name="dmax model", doc="model for solving damage optimization problem")
 
-# 装備データの２次元配列をパラメータとしてモデルに追加
+# パラメータ定義: 装備データの2次元配列パラメータ
 mdl.p = Param(equip_names, attribute_set, default=0, initialize=eqinfo_matrix, within=Integers)
 
-# 装備を何個使うかを表す変数をモデルに追加
+# 変数定義: 各装備を何個使うかを表す変数
 mdl.q = Var(equip_names, within=NonNegativeIntegers, initialize=0)
 
 # 制約条件(1): 各部位で使用できる装備の数は 1 以下
@@ -2366,7 +2376,7 @@ def const_total_equipment_type(mdl, eqtype):
 
 mdl.const_total_equipment_type = Constraint(single_equip_type_set, rule=const_total_equipment_type)
 
-# ユーザが指定した必須スキルレベルをパラメータとしてモデルに追加
+# パラメータ定義: ユーザが指定した必須スキルレベル
 mdl.r = Param(required_skills.keys(), default=0, initialize=required_skills, within=Integers)
 
 # 制約条件(2): ユーザが指定したスキルレベルの条件を満たす
@@ -2393,6 +2403,7 @@ print(mdl.pprint())
 import os
 output_filename = f"{os.path.splitext(os.path.basename(__file__))[0]}-problem.nl"
 mdl.write(output_filename, format="nl", io_options={'symbolic_solver_labels': True})
+
 ```
 
 `dmax-mini-1.py` と `dmax-mini-2.py` の差分コードの説明をします。
@@ -3058,6 +3069,7 @@ print(mdl.pprint())
 import os
 output_filename = f"{os.path.splitext(os.path.basename(__file__))[0]}-problem.nl"
 mdl.write(output_filename, format="nl", io_options={'symbolic_solver_labels': True})
+
 ```
 
 以上でスキルシミュレーターが完成しました！
@@ -3391,7 +3403,7 @@ https://github.com/hotckrin/dmax-from-scratch-sample-code/blob/main/dmax-mini-4.
 
 
 ```py:dmax-mini-4.py
-# dmax-mini-4.py: 制約条件(1)-(4) を実装
+# dmax-mini-4.py: 制約条件(1)-(6) と ダメージ計算式 を実装
 from pyomo.environ import *
 
 # =============================================================================
@@ -3464,31 +3476,31 @@ for equip in equip_all:
     eqinfo_matrix[equip['name'], equip['type']] = 1
 
     # 装備についているスキルの属性データを追加
-    # 例: eqinfo_matrix['反攻の護石Ⅲ', '巧撃'] = 3
+    # 例: eqinfomatrix['反攻の護石Ⅲ', '巧撃'] = 3
     for skill in equip['skills']:
         eqinfo_matrix[equip['name'], skill] = equip['skills'][skill]
 
     # 装備の防御力を追加
     eqinfo_matrix[equip['name'], 'deffence'] = equip['deffence'] if 'deffence' in equip else 0
 
-    # 装備の残りスロット属性を追加
-    if equip['type'] in single_equip_type_set:
-        eqinfo_matrix[equip['name'], 'Lv123RemainSlotNum'] = len(list(filter(lambda n: n >= 1, equip['slots'])))
-        eqinfo_matrix[equip['name'], 'Lv23RemainSlotNum'] = len(list(filter(lambda n: n >= 2, equip['slots'])))
-        eqinfo_matrix[equip['name'], 'Lv3RemainSlotNum'] = len(list(filter(lambda n: n >= 3, equip['slots'])))
-
     # 装飾品の残りスロット属性を追加
     if equip['type'] == 'decoArmor':
         eqinfo_matrix[equip['name'], 'Lv123RemainSlotNum'] =  -1 if equip['size'] >= 1 else 0
-        eqinfo_matrix[equip['name'], 'Lv23RemainSlotNum'] =  -1 if equip['size'] >= 2 else 0
-        eqinfo_matrix[equip['name'], 'Lv3RemainSlotNum'] =  -1 if equip['size'] >= 3 else 0
+        eqinfo_matrix[equip['name'], 'Lv23RemainSlotNum']  =  -1 if equip['size'] >= 2 else 0
+        eqinfo_matrix[equip['name'], 'Lv3RemainSlotNum']   =  -1 if equip['size'] >= 3 else 0
+
+    # 装備の残りスロット属性を追加
+    if equip['type'] in single_equip_type_set:
+        eqinfo_matrix[equip['name'], 'Lv123RemainSlotNum'] = len(list(filter(lambda n: n >= 1, equip['slots'])))
+        eqinfo_matrix[equip['name'], 'Lv23RemainSlotNum']  = len(list(filter(lambda n: n >= 2, equip['slots'])))
+        eqinfo_matrix[equip['name'], 'Lv3RemainSlotNum']   = len(list(filter(lambda n: n >= 3, equip['slots'])))
 
 # ユーザが指定する必須スキルレベルのデータ
 required_skills = {
-    "巧撃": 5,
+    "巧撃": 0,
     "挑戦者": 0,
-    "逆襲": 3,
-    "弱点特効": 5,
+    "逆襲": 0,
+    "弱点特効": 0,
     "渾身": 0,
     "力の解放": 0,
     "煌雷竜の力": 0,
@@ -3496,7 +3508,7 @@ required_skills = {
     "海竜の渦雷": 0,
     "千刃竜の闘志": 0,
     "スタミナ急速回復": 3,
-    "体術": 4,
+    "体術": 5,
     "回避距離ＵＰ": 0,
     "気絶耐性": 0,
     "革細工の柔性": 0,
@@ -3634,6 +3646,7 @@ def objective(mdl):
 # 目的関数をモデルに設定
 mdl.OBJ = Objective(rule=objective, sense=maximize)
 
+
 # =============================================================================
 # step3. モデルの出力
 # =============================================================================
@@ -3645,6 +3658,7 @@ print(mdl.pprint())
 import os
 output_filename = f"{os.path.splitext(os.path.basename(__file__))[0]}-problem.nl"
 mdl.write(output_filename, format="nl", io_options={'symbolic_solver_labels': True})
+
 ```
 
 以上で `dmax-mini-4.py` の実装が完了し、最適化シミュに必要な制約条件を一通り実装できました。
